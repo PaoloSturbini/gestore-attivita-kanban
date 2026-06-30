@@ -1,0 +1,17 @@
+.DS_Store
+.ts/
+.zennotes/
+.env
+*.log
+node_modules/
+dist/
+generated-assets/
+archive/
+quick/
+trash/
+src/.codex-write-test
+
+deploy/couchdb/.env
+deploy/portal/.env
+deploy/portal/users.json
+

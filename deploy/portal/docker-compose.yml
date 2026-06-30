@@ -1,0 +1,12 @@
+services:
+  kanban-portal:
+    image: node:24-alpine
+    container_name: kanban-portal
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app
+    env_file:
+      - .env
+    volumes:
+      - ./:/app:ro
+    command: ["node", "/app/server.mjs"]

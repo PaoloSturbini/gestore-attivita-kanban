@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Syntax check
+        run: npm run check
+      - name: Unit and structure tests
+        run: npm test
+      - name: Bundle web app
+        run: npm run bundle
+      - name: Build macOS app
+        run: KANBAN_INSTALL_APP=0 npm run build:mac
+

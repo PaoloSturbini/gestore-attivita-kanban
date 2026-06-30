@@ -1,0 +1,1 @@
+window.KANBAN_INITIAL_PROJECTS = [];

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Attività responsabile</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section id="loginView" class="login-view" hidden>
+        <form id="loginForm" class="login-panel">
+          <div>
+            <p class="eyebrow">Gestore attività</p>
+            <h1>Attività responsabile</h1>
+          </div>
+          <label>
+            Utente
+            <input id="username" autocomplete="username" required />
+          </label>
+          <label>
+            Password
+            <input id="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit">Accedi</button>
+          <p id="loginError" class="form-error" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section id="tasksView" class="tasks-view" hidden>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="pageEyebrow">Le mie attività</p>
+            <h1 id="pageTitle">Attività</h1>
+          </div>
+          <div class="topbar-actions">
+            <button id="adminTasksBtn" class="admin-toggle" type="button" hidden>Attività</button>
+            <button id="adminToggleBtn" class="admin-toggle" type="button" hidden>Utenti</button>
+            <button id="refreshBtn" class="icon-button" type="button" title="Aggiorna" aria-label="Aggiorna">↻</button>
+            <button id="logoutBtn" class="icon-button" type="button" title="Esci" aria-label="Esci">⇥</button>
+          </div>
+        </header>
+
+        <section id="adminPanel" class="admin-panel" hidden>
+          <header>
+            <div>
+              <p class="eyebrow">Amministrazione</p>
+              <h2>Utenti portale</h2>
+            </div>
+          </header>
+          <form id="userForm" class="user-form">
+            <label>
+              Utente
+              <input id="newUsername" autocomplete="off" required />
+            </label>
+            <label>
+              Nome
+              <input id="newDisplayName" autocomplete="off" required />
+            </label>
+            <label>
+              Visibilità
+              <select id="newVisibleAs" required></select>
+            </label>
+            <label>
+              Password
+              <input id="newPassword" type="text" autocomplete="off" required />
+            </label>
+            <button type="submit">Crea</button>
+          </form>
+          <p id="adminMessage" class="form-error" aria-live="polite"></p>
+          <div id="userList" class="user-list"></div>
+        </section>
+
+        <section id="filtersPanel" class="filters" aria-label="Filtri">
+          <label>
+            Cerca
+            <input id="searchInput" type="search" placeholder="Nome, progetto, note" />
+          </label>
+          <label>
+            Stato
+            <select id="statusFilter">
+              <option value="">Tutti</option>
+            </select>
+          </label>
+          <label>
+            Priorità
+            <select id="priorityFilter">
+              <option value="">Tutte</option>
+              <option value="high">Alta</option>
+              <option value="medium">Media</option>
+              <option value="low">Bassa</option>
+              <option value="none">ND</option>
+            </select>
+          </label>
+        </section>
+
+        <section id="taskList" class="task-list" aria-live="polite"></section>
+        <p id="emptyState" class="empty-state" hidden>Nessuna attività da mostrare.</p>
+      </section>
+    </main>
+
+    <template id="taskTemplate">
+      <article class="task-card">
+        <span class="new-pill" hidden>new</span>
+        <header class="task-card-header">
+          <div>
+            <p class="project-name"></p>
+            <h2></h2>
+          </div>
+        </header>
+        <div class="task-meta">
+          <div class="meta-item">
+            <span class="meta-label">Responsabile</span>
+            <span class="meta-pill owner"></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Scadenza</span>
+            <span class="meta-pill due"></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Priorità</span>
+            <span class="meta-pill priority-pill"></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Aggiornamento</span>
+            <span class="meta-pill updated"></span>
+          </div>
+        </div>
+        <div class="task-controls">
+          <label>
+            Stato
+            <select data-field="statusId"></select>
+          </label>
+          <label>
+            Priorità
+            <select data-field="priority">
+              <option value="high">Alta</option>
+              <option value="medium">Media</option>
+              <option value="low">Bassa</option>
+              <option value="none">ND</option>
+            </select>
+          </label>
+          <label>
+            Scadenza
+            <input data-field="dueDate" type="date" />
+          </label>
+        </div>
+        <label class="notes-field">
+          Note
+          <textarea data-field="notes" rows="3"></textarea>
+        </label>
+        <div class="subtasks"></div>
+        <footer>
+          <span class="footer-left"><span class="save-state"></span></span>
+          <button data-action="save" type="button">Salva</button>
+        </footer>
+      </article>
+    </template>
+
+    <template id="userTemplate">
+      <article class="user-row">
+        <div>
+          <strong></strong>
+          <span></span>
+        </div>
+        <label>
+          Visibilità
+          <select data-user-field="visibleAs"></select>
+        </label>
+        <label>
+          Password
+          <input data-user-field="password" type="text" autocomplete="off" />
+        </label>
+        <button data-user-action="save" type="button">Salva</button>
+        <button data-user-action="delete" class="danger-button" type="button">Elimina</button>
+      </article>
+    </template>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

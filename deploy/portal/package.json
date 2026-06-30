@@ -1,0 +1,15 @@
+{
+  "name": "kanban-responsabili-portal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Portale web gateway per responsabili del Gestore attività Kanban.",
+  "scripts": {
+    "start": "./start.sh",
+    "check": "for f in *.mjs public/*.js; do node --check \"$f\" || exit 1; done"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
+

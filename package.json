@@ -1,0 +1,18 @@
+{
+  "name": "gestore-attivita-kanban",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App macOS locale per gestione attività Kanban con sincronizzazione CouchDB e portale responsabili.",
+  "type": "module",
+  "scripts": {
+    "check": "for f in src/*.js deploy/portal/*.mjs deploy/portal/public/*.js; do node --check \"$f\" || exit 1; done",
+    "test": "node tests/run-tests.mjs",
+    "bundle": "bash macos/bundle_app_js.sh",
+    "build:mac": "bash macos/build_app.sh",
+    "portal:start": "cd deploy/portal && ./start.sh"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
+

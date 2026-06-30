@@ -1,0 +1,141 @@
+%% Struttura sorgente - Gestore attivita Kanban
+%% Render: https://mermaid.live oppure Markdown con supporto Mermaid.
+
+flowchart TB
+  repo["Gestore attivita Kanban"]
+
+  subgraph desktop["App desktop macOS + WebView"]
+    src["src/*.js\nSorgenti applicazione"]
+    core["01_core.js\nCostanti, initialData, stato globale, boot"]
+    state["02_state.js\nModello dati, normalizzazione, PouchDB, CouchDB sync"]
+    shell["03_shell.js\nEventi UI, sidebar, tab, tema, configurazione"]
+    views["04_views.js\nDashboard, board, calendario, scadenze"]
+    drag["05_dragdrop.js\nDrag and drop card"]
+    tables["06_tables.js\nListe, tabelle, task card"]
+    dialogs["07_dialogs.js\nDialog task, progetti, stati, allegati"]
+    xlsx["08_xlsx.js\nImport/export Excel"]
+    backup["09_backup.js\nBackup, restore, replica remota"]
+    utils["10_utils.js\nDate, ricerca, escaping, ordinamenti"]
+
+    bundleScript["macos/bundle_app_js.sh\nConcatena src/ in app.bundle.js"]
+    bundle["assets/app.bundle.js\nBundle generato"]
+    html["assets/index.html\nShell HTML WebView"]
+    css["assets/styles.css\nStili app"]
+    pouch["assets/pouchdb.min.js\nDB locale browser"]
+    sample["assets/sample-data.js\nDati demo/fallback"]
+
+    swift["macos/GestoreKanban/main.swift\nWrapper Cocoa/WebKit e bridge nativo"]
+    plist["macos/Info.plist\nMetadati app"]
+    build["macos/build_app.sh\nBuild, codesign, dist e /Applications"]
+    app["dist/Gestore attivita Kanban.app\nApplicazione macOS"]
+  end
+
+  subgraph model["Modello dati sincronizzato"]
+    pouchLocal["PouchDB locale\nDB offline nella WebView"]
+    docs["Documenti separati CouchDB/PouchDB"]
+    meta["kanban-meta"]
+    workspace["kanban-workspace\nworkspaceId"]
+    project["kanban-project\nworkspaceId, projectId, statuses"]
+    task["kanban-task\nworkspaceId, projectId, owner, groupId,\nvisibleTo, updatedAt, subtasks"]
+  end
+
+  subgraph remote["CouchDB remoto + route Cosmos"]
+    couchDeploy["deploy/couchdb/init-kanban-db.sh\nCrea DB, security e design doc"]
+    couch["CouchDB\ngestore-attivita-kanban"]
+    design["_design/kanban"]
+    byOwner["view tasks_by_owner"]
+    byGroup["view tasks_by_group"]
+    byVisible["view tasks_by_visible_to"]
+    cosmosDb["Cosmos route pstdb.pst.my\nProxy verso CouchDB"]
+  end
+
+  subgraph portal["Portale responsabili staff360"]
+    portalServer["deploy/portal/server.mjs\nHTTP server, auth, sessioni, API"]
+    portalHtml["deploy/portal/public/index.html\nLogin, lista attivita, pannello utenti"]
+    portalJs["deploy/portal/public/app.js\nClient UI, filtri, salvataggi, admin users"]
+    portalCss["deploy/portal/public/styles.css\nStili portale"]
+    portalUsers["users.json\nSolo admin bootstrap"]
+    portalUserDocs["kanban-portal-user\nUtenti responsabili in CouchDB"]
+    portalDocker["deploy/portal/docker-compose.yml\nContainer Node su 127.0.0.1:8787"]
+    cosmosPortal["Cosmos route staff360.pst.my\nProxy verso portale"]
+  end
+
+  subgraph tests["Verifica"]
+    testRunner["tests/run-tests.mjs\nSmoke test sorgenti, modello dati e portale"]
+  end
+
+  repo --> desktop
+  repo --> model
+  repo --> remote
+  repo --> portal
+  repo --> tests
+
+  src --> core
+  src --> state
+  src --> shell
+  src --> views
+  src --> drag
+  src --> tables
+  src --> dialogs
+  src --> xlsx
+  src --> backup
+  src --> utils
+
+  core --> state
+  state --> shell
+  shell --> views
+  views --> drag
+  views --> tables
+  tables --> dialogs
+  dialogs --> xlsx
+  xlsx --> backup
+  backup --> utils
+
+  src --> bundleScript --> bundle
+  html --> bundle
+  html --> css
+  html --> pouch
+  html --> sample
+  swift --> html
+  build --> bundleScript
+  build --> swift
+  build --> plist
+  build --> app
+
+  state --> pouchLocal
+  pouchLocal <--> docs
+  docs --> meta
+  docs --> workspace
+  docs --> project
+  docs --> task
+  backup --> couch
+  pouchLocal <--> couch
+
+  couchDeploy --> couch
+  couch --> design
+  design --> byOwner
+  design --> byGroup
+  design --> byVisible
+  cosmosDb --> couch
+
+  portalDocker --> portalServer
+  cosmosPortal --> portalServer
+  portalServer --> portalHtml
+  portalHtml --> portalJs
+  portalHtml --> portalCss
+  portalServer --> portalUsers
+  portalServer --> portalUserDocs
+  portalServer --> byOwner
+  portalServer --> byGroup
+  portalServer --> byVisible
+  portalServer --> couch
+  portalJs --> portalServer
+
+  task -.->|"visibleTo include Team per tutti i responsabili"| portalServer
+  portalServer -.->|"admin only: gestione utenti e password visibili"| portalUserDocs
+
+  testRunner --> src
+  testRunner --> couchDeploy
+  testRunner --> portalServer
+  testRunner --> portalJs
+  testRunner --> portalHtml

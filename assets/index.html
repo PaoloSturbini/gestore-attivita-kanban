@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gestore attività Kanban</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navigazione">
+        <div class="sidebar-scroll">
+          <section class="workspace">
+            <h1 id="workspaceNamePill">default</h1>
+          </section>
+
+          <section class="projects collapsible" aria-labelledby="projectsTitle">
+            <div class="section-toggle">
+              <button class="section-title-btn" id="projectsTitleBtn" type="button">
+                <span class="nav-icon section-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/></svg></span>
+                <span id="projectsTitle">Lista progetti</span>
+              </button>
+              <button class="section-chevron-btn" id="projectsToggle" type="button" aria-expanded="true" aria-label="Apri o chiudi Lista progetti">
+                <span class="chevron" aria-hidden="true">⌄</span>
+              </button>
+            </div>
+            <div class="section-body" id="projectsBody">
+              <div id="projectList"></div>
+            </div>
+          </section>
+
+        <section class="deadline-nav collapsible" aria-labelledby="deadlineTitle">
+          <div class="section-toggle">
+            <button class="section-title-btn" id="deadlineTitleBtn" type="button">
+              <span class="nav-icon section-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/></svg></span>
+              <span id="deadlineTitle">Scadenze</span>
+            </button>
+            <button class="section-chevron-btn" id="deadlineToggle" type="button" aria-expanded="true" aria-label="Apri o chiudi Scadenze">
+              <span class="chevron" aria-hidden="true">⌄</span>
+            </button>
+          </div>
+          <div class="section-body" id="deadlineBody">
+            <button class="deadline-link calendar-link" id="calendarToggle" type="button">Calendario</button>
+            <button class="deadline-link" data-filter="today">Oggi</button>
+            <button class="deadline-link" data-filter="week">Questa settimana</button>
+            <button class="deadline-link" data-filter="month">Prossimo mese</button>
+            <button class="deadline-link" data-filter="planned">Pianificate</button>
+            <button class="deadline-link" data-filter="unplanned">Non pianificate</button>
+            <button class="deadline-link" data-filter="overdue">Attività scadute</button>
+          </div>
+        </section>
+
+          <section class="owner-nav collapsible" aria-labelledby="ownerTitle">
+            <div class="section-toggle">
+              <button class="section-title-btn" id="ownerTitleBtn" type="button">
+                <span class="nav-icon section-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.3"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg></span>
+                <span id="ownerTitle">Responsabile</span>
+              </button>
+              <button class="section-chevron-btn" id="ownerToggle" type="button" aria-expanded="true" aria-label="Apri o chiudi Responsabile">
+                <span class="chevron" aria-hidden="true">⌄</span>
+              </button>
+            </div>
+            <div class="section-body" id="ownerBody">
+              <div id="ownerList"></div>
+            </div>
+          </section>
+
+          <section class="priority-nav collapsible" aria-labelledby="priorityTitle">
+            <div class="section-toggle">
+              <button class="section-title-btn" id="priorityTitleBtn" type="button">
+                <span class="nav-icon section-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4.5"/><path d="M6 5h11l-2.2 3.2L17 11.5H6"/></svg></span>
+                <span id="priorityTitle">Priorità</span>
+              </button>
+              <button class="section-chevron-btn" id="priorityToggle" type="button" aria-expanded="true" aria-label="Apri o chiudi Priorità">
+                <span class="chevron" aria-hidden="true">⌄</span>
+              </button>
+            </div>
+            <div class="section-body" id="priorityBody">
+              <button class="priority-link" data-priority-filter="high">Alto</button>
+              <button class="priority-link" data-priority-filter="medium">Medio</button>
+              <button class="priority-link" data-priority-filter="low">Basso</button>
+            </div>
+          </section>
+
+          <section class="archive-nav collapsible" aria-labelledby="archiveTitle">
+            <div class="section-toggle">
+              <button class="section-title-btn" id="archiveToggle" type="button">
+                <span class="nav-icon section-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="4" rx="1"/><path d="M5.5 8.5v10a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-10"/><line x1="10" y1="12.5" x2="14" y2="12.5"/></svg></span>
+                <span id="archiveTitle">Archivio</span>
+              </button>
+              <button class="section-chevron-btn" id="archiveChevron" type="button" aria-expanded="false" aria-label="Apri o chiudi Archivio" hidden>
+                <span class="chevron" aria-hidden="true">›</span>
+              </button>
+            </div>
+            <div class="section-body" id="archiveBody" hidden>
+              <div id="archiveList"></div>
+            </div>
+          </section>
+
+          <button class="nav-action" id="searchToggle">
+            <span class="nav-icon section-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg></span>
+            Search
+          </button>
+          <label class="sidebar-search" id="sidebarSearchPanel">
+            <input id="sidebarSearchInput" type="search" placeholder="Cerca attività..." />
+          </label>
+        </div>
+
+        <section class="config-nav config-launcher" aria-labelledby="configTitle">
+          <button class="section-toggle" id="configToggle" type="button">
+            <span class="nav-icon section-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.1 14.5a1.55 1.55 0 0 0 .31 1.71l.05.06a2 2 0 1 1-2.83 2.83l-.06-.05a1.55 1.55 0 0 0-2.64 1.1V20a2 2 0 1 1-4 0v-.09a1.55 1.55 0 0 0-2.64-1.1l-.06.05a2 2 0 1 1-2.83-2.83l.05-.06a1.55 1.55 0 0 0 .31-1.71 1.55 1.55 0 0 0-1.42-.93H4a2 2 0 1 1 0-4h.09a1.55 1.55 0 0 0 1.42-.93 1.55 1.55 0 0 0-.31-1.71l-.05-.06a2 2 0 1 1 2.83-2.83l.06.05a1.55 1.55 0 0 0 1.71.31H10a1.55 1.55 0 0 0 .93-1.42V4a2 2 0 1 1 4 0v.09a1.55 1.55 0 0 0 .93 1.42 1.55 1.55 0 0 0 1.71-.31l.06-.05a2 2 0 1 1 2.83 2.83l-.05.06a1.55 1.55 0 0 0-.31 1.71V10a1.55 1.55 0 0 0 1.42.93H20a2 2 0 1 1 0 4h-.09a1.55 1.55 0 0 0-1.42.93z"/></svg></span>
+            <span id="configTitle">Configurazione</span>
+          </button>
+        </section>
+
+        <nav class="workspace-dock" id="workspaceDock" aria-label="Spazi di lavoro"></nav>
+
+        <div class="sidebar-resize-handle" id="sidebarResizeHandle" aria-hidden="true"></div>
+      </aside>
+
+      <main class="main">
+        <nav class="project-tabs" id="projectTabs" aria-label="Progetti aperti"></nav>
+
+        <section class="page-head">
+          <div class="share-row">
+            <button class="share-btn" id="exportBtn">Esporta Markdown</button>
+            <button class="share-btn" id="exportExcelBtn">Esporta Excel</button>
+            <button class="share-btn" id="importExcelBtn">Importa Excel</button>
+            <input id="importExcelInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
+          </div>
+
+          <h2 id="pageTitle">Lista progetti</h2>
+
+          <div class="view-strip">
+            <div class="view-tabs" role="tablist" aria-label="Viste">
+              <button class="view-tab active" data-view="board" role="tab">▦ Board</button>
+              <button class="view-tab" data-view="table" role="tab">☷ List</button>
+              <button class="view-tab" data-view="timeline" role="tab">↦ Timeline</button>
+            </div>
+            <div class="tools">
+              <button class="icon-btn" id="searchBtn" title="Cerca" aria-label="Cerca">⌕</button>
+              <button class="icon-btn" id="settingsBtn" title="Stati" aria-label="Stati">⚙</button>
+              <button class="new-btn" id="newTaskBtn">New <span aria-hidden="true">⌄</span></button>
+            </div>
+          </div>
+
+          <label class="search-panel" id="searchPanel">
+            <span>Cerca attività</span>
+            <input id="searchInput" type="search" placeholder="Nome, responsabile, note..." />
+          </label>
+        </section>
+
+        <section class="content" id="content" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <dialog id="taskDialog">
+      <form method="dialog" id="taskForm" class="dialog-card">
+        <header>
+          <h3 id="dialogTitle">Nuova attività</h3>
+          <button type="button" class="icon-btn" data-close-dialog aria-label="Chiudi">×</button>
+        </header>
+        <input type="hidden" id="taskId" />
+
+        <div id="taskConflictBanner" class="sync-conflict-banner" hidden></div>
+
+        <label>
+          Nome attività
+          <input id="taskName" required maxlength="90" />
+        </label>
+
+        <div class="form-grid">
+          <label>
+            Inizio attività
+            <input id="taskStart" type="date" />
+          </label>
+          <label>
+            Due date attività
+            <input id="taskDue" type="date" />
+          </label>
+        </div>
+
+        <div class="form-grid task-assignment-grid">
+          <label>
+            Stato
+            <select id="taskStatus"></select>
+          </label>
+          <label>
+            Responsabile
+            <select id="taskOwner"></select>
+          </label>
+          <label>
+            Priorità
+            <select id="taskPriority">
+              <option value="none">ND</option>
+              <option value="low">Basso</option>
+              <option value="medium">Medio</option>
+              <option value="high">Alto</option>
+            </select>
+          </label>
+        </div>
+
+        <label>
+          Note
+          <textarea id="taskNotes" rows="3"></textarea>
+        </label>
+
+        <label class="inline-check">
+          <input id="taskReminderEnabled" type="checkbox" />
+          <span>Attiva promemoria Apple per questa attività</span>
+        </label>
+
+        <section class="attachment-editor" aria-labelledby="attachmentEditorTitle">
+          <div class="subtask-title">
+            <span id="attachmentEditorTitle">Allegati</span>
+            <div class="attachment-toolbar">
+              <button type="button" class="small-btn" id="attachFileBtn">Allega file esistente</button>
+              <button type="button" class="small-btn" id="newAttachmentBtn">Crea nuovo file</button>
+            </div>
+          </div>
+          <div id="attachmentList"></div>
+        </section>
+
+        <section class="subtask-editor">
+          <div class="subtask-title">
+            <span>Sotto-attività</span>
+            <button type="button" class="small-btn" id="addSubtaskBtn">+ Aggiungi</button>
+          </div>
+          <div id="subtaskFields"></div>
+        </section>
+
+        <footer>
+          <button type="button" class="danger-btn" id="deleteTaskBtn">Elimina</button>
+          <span></span>
+          <button type="button" class="secondary-btn" data-close-dialog>Chiudi</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="statusDialog">
+      <form method="dialog" class="dialog-card compact" id="statusForm">
+        <header>
+          <h3>Stati</h3>
+          <button type="button" class="icon-btn" data-close-dialog aria-label="Chiudi">×</button>
+        </header>
+        <label>
+          Nuovo stato
+          <input id="statusName" required maxlength="28" placeholder="Es. In revisione" />
+        </label>
+        <section class="status-visibility">
+          <div class="subtask-title">
+            <span>Colonne visibili</span>
+          </div>
+          <div id="statusVisibilityList"></div>
+        </section>
+        <footer>
+          <span></span>
+          <button type="button" class="secondary-btn" data-close-dialog>Annulla</button>
+          <button type="submit" class="primary-btn">Aggiungi</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="projectNoteDialog">
+      <form method="dialog" class="dialog-card compact" id="projectNoteForm">
+        <header>
+          <h3>Nota progetto</h3>
+          <button type="button" class="icon-btn" data-close-dialog aria-label="Chiudi">×</button>
+        </header>
+        <input type="hidden" id="projectNoteId" />
+        <label>
+          Nota
+          <input id="projectNoteText" maxlength="140" placeholder="Nota breve del progetto" />
+        </label>
+        <footer>
+          <span></span>
+          <button type="button" class="secondary-btn" data-close-dialog>Chiudi</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="projectDeleteDialog">
+      <form method="dialog" class="dialog-card compact" id="projectDeleteForm">
+        <header>
+          <h3>Cancella progetto</h3>
+          <button type="button" class="icon-btn" data-close-dialog aria-label="Chiudi">×</button>
+        </header>
+        <input type="hidden" id="projectDeleteId" />
+        <p class="dialog-note">Confermi la cancellazione del progetto <strong id="projectDeleteName"></strong>?</p>
+        <footer>
+          <span></span>
+          <button type="button" class="secondary-btn" data-close-dialog>Annulla</button>
+          <button type="submit" class="danger-btn">Conferma</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="statusDeleteDialog">
+      <form method="dialog" class="dialog-card compact" id="statusDeleteForm">
+        <header>
+          <h3>Cancella stato</h3>
+          <button type="button" class="icon-btn" data-close-dialog aria-label="Chiudi">×</button>
+        </header>
+        <input type="hidden" id="statusDeleteId" />
+        <p class="dialog-note">Confermi la cancellazione dello stato <strong id="statusDeleteName"></strong>?</p>
+        <footer>
+          <span></span>
+          <button type="button" class="secondary-btn" data-close-dialog>Annulla</button>
+          <button type="submit" class="danger-btn">Conferma</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="configDialog">
+      <section class="dialog-card config-dialog-card">
+        <header>
+          <h3>Configurazione</h3>
+          <button type="button" class="icon-btn" data-close-dialog aria-label="Chiudi">×</button>
+        </header>
+
+        <div class="config-body" id="configBody">
+          <nav class="config-section-menu" aria-label="Sezioni configurazione">
+            <span class="config-group-label">Spazio</span>
+            <button type="button" class="config-section-tab" data-config-panel-tab="workspace">
+              <svg class="config-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              <span>Spazio di lavoro</span>
+            </button>
+            <button type="button" class="config-section-tab" data-config-panel-tab="tasks">
+              <svg class="config-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l1.4 1.4L8 5"/><path d="M4 12l1.4 1.4L8 11"/><path d="M4 18l1.4 1.4L8 17"/><line x1="11" y1="6" x2="20" y2="6"/><line x1="11" y1="12" x2="20" y2="12"/><line x1="11" y1="18" x2="20" y2="18"/></svg>
+              <span>Attività e promemoria</span>
+            </button>
+            <button type="button" class="config-section-tab" data-config-panel-tab="attachments">
+              <svg class="config-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11.5l-8 8a5 5 0 0 1-7-7L13 4.5a3.3 3.3 0 0 1 4.7 4.7l-8.1 8.1a1.6 1.6 0 0 1-2.3-2.3l7.4-7.4"/></svg>
+              <span>Allegati</span>
+            </button>
+            <span class="config-group-label">Dati</span>
+            <button type="button" class="config-section-tab" data-config-panel-tab="backup">
+              <svg class="config-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+              <span>Backup</span>
+            </button>
+            <button type="button" class="config-section-tab" data-config-panel-tab="remote">
+              <svg class="config-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4 4 0 0 1-.5-7.97A5 5 0 0 1 16.5 8.5 3.5 3.5 0 0 1 17 18H7z"/></svg>
+              <span>Replica CouchDB</span>
+            </button>
+            <button type="button" class="config-section-tab" data-config-panel-tab="safety">
+              <svg class="config-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5.2c0 4.4-3 7.6-7 8.8-4-1.2-7-4.4-7-8.8V6l7-3z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>
+              <span>Sicurezza dati</span>
+            </button>
+            <span class="config-group-label">Aspetto</span>
+            <button type="button" class="config-section-tab" data-config-panel-tab="appearance">
+              <svg class="config-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 1.8 1.8 0 0 0 1.8-1.8c0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-5-4-10.4-9-10.4z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="12" cy="7.5" r="1.1"/><circle cx="16.5" cy="11" r="1.1"/></svg>
+              <span>Aspetto</span>
+            </button>
+            <div class="support-panel config-support-panel">
+              <div>
+                <strong>Ti piace questa applicazione?</strong>
+                <span>Puoi lasciare un piccolo contributo su Ko-fi per sostenere lo sviluppo.</span>
+              </div>
+              <div class="kofi-widget">
+                <script type="text/javascript" src="https://storage.ko-fi.com/cdn/widget/Widget_2.js"></script>
+                <script type="text/javascript">
+                  kofiwidget2.init("Support me on Ko-fi", "#72a4f2", "S1D521EFNY");
+                  kofiwidget2.draw();
+                </script>
+              </div>
+            </div>
+          </nav>
+          <div class="config-panel-stage">
+          <section class="config-subsection" data-config-panel="workspace" aria-labelledby="workspaceConfigTitle">
+            <h3 id="workspaceConfigTitle">Spazio di lavoro</h3>
+            <select id="workspaceSelect" aria-label="Spazio di lavoro"></select>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Spazi disponibili</strong>
+                <span>Seleziona o rinomina uno spazio, oppure creane uno nuovo.</span>
+              </div>
+              <button type="button" class="secondary-btn config-action" id="newWorkspaceBtn">+ Aggiungi spazio</button>
+              <div id="workspaceCreateSlot"></div>
+            </div>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Partecipanti</strong>
+                <span>Questi nomi diventano selezionabili come responsabili delle attività.</span>
+              </div>
+              <button type="button" class="secondary-btn config-action" id="newParticipantBtn">+ Aggiungi partecipante</button>
+              <div class="participant-list" id="participantsList"></div>
+            </div>
+          </section>
+
+          <section class="config-subsection" data-config-panel="tasks" aria-labelledby="tasksConfigTitle">
+            <h3 id="tasksConfigTitle">Attività e promemoria</h3>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Archivio attività</strong>
+                <span>Sposta automaticamente in archivio le attività concluse.</span>
+              </div>
+              <div class="attachment-editor-config">
+                <label class="inline-check">
+                  <input id="autoArchiveDoneEnabled" type="checkbox" />
+                  <span>Archivia automaticamente attività concluse</span>
+                </label>
+                <label class="compact-select-field">
+                  Dopo
+                  <select id="autoArchiveDoneDelay">
+                    <option value="1">1 giorno</option>
+                    <option value="3">3 giorni</option>
+                    <option value="7">1 settimana</option>
+                    <option value="30">1 mese</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Promemoria Apple</strong>
+                <span>Crea e aggiorna i promemoria dalle scadenze dello spazio.</span>
+              </div>
+              <div class="attachment-editor-config reminders-config">
+                <label class="inline-check">
+                  <input id="syncRemindersEnabled" type="checkbox" />
+                  <span>Sincronizza scadenze nei Promemoria Apple</span>
+                </label>
+                <label>
+                  Lista esistente
+                  <select id="remindersListSelect">
+                    <option value="">Carica liste</option>
+                  </select>
+                </label>
+                <label>
+                  Nome lista
+                  <input id="remindersListName" type="text" spellcheck="false" autocomplete="off" placeholder="kanban" />
+                </label>
+                <div class="remote-sync-state">
+                  <span>Stato promemoria</span>
+                  <strong id="remindersSyncStatus">Disattivati</strong>
+                </div>
+                <div class="attachment-editor-actions">
+                  <button type="button" class="secondary-btn config-action" id="refreshRemindersListsBtn">Carica liste</button>
+                  <button type="button" class="secondary-btn config-action" id="syncRemindersNowBtn">Aggiorna ora</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="config-subsection" data-config-panel="attachments" aria-labelledby="attachmentsConfigTitle">
+            <h3 id="attachmentsConfigTitle">Allegati</h3>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>App di editing</strong>
+                <span>Applicazione usata per aprire e creare file di testo o Markdown.</span>
+              </div>
+              <div class="attachment-editor-config">
+                <span>Editor selezionato</span>
+                <strong id="attachmentEditorName">Predefinito macOS</strong>
+                <div class="attachment-editor-actions">
+                  <button type="button" class="secondary-btn config-action" id="selectAttachmentEditorBtn">Scegli app di editing</button>
+                  <button type="button" class="secondary-btn config-action subtle" id="clearAttachmentEditorBtn">Usa predefinito</button>
+                </div>
+              </div>
+            </div>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Archivio file</strong>
+                <span>Cartella dove copiare e creare i file collegati alle attività.</span>
+              </div>
+              <div class="attachment-editor-config">
+                <span>Cartella selezionata</span>
+                <strong id="attachmentDirectoryName">Non impostata</strong>
+                <div class="attachment-editor-actions">
+                  <button type="button" class="secondary-btn config-action" id="selectAttachmentDirectoryBtn">Scegli o crea cartella</button>
+                  <button type="button" class="secondary-btn config-action subtle" id="clearAttachmentDirectoryBtn">Rimuovi cartella</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="config-subsection" data-config-panel="appearance" aria-labelledby="appearanceConfigTitle">
+            <h3 id="appearanceConfigTitle">Aspetto</h3>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Tema e accento</strong>
+                <span>Imposta colori generali e colore principale dello spazio.</span>
+              </div>
+              <label>
+                Tema
+                <select id="themeMode">
+                  <option value="light">Chiaro</option>
+                  <option value="dark">Scuro</option>
+                </select>
+              </label>
+              <div class="accent-control">
+                <span>Accento</span>
+                <div class="accent-palette" id="accentPalette" aria-label="Palette colore accento">
+                  <button type="button" data-accent="#9365f4" aria-label="Viola"></button>
+                  <button type="button" data-accent="#3f8cff" aria-label="Blu"></button>
+                  <button type="button" data-accent="#1f9d78" aria-label="Verde"></button>
+                  <button type="button" data-accent="#d88a1d" aria-label="Ambra"></button>
+                  <button type="button" data-accent="#d84d7f" aria-label="Rosa"></button>
+                  <button type="button" data-accent="#5f687a" aria-label="Grigio"></button>
+                </div>
+              </div>
+            </div>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Dimensione caratteri</strong>
+                <span>Regola separatamente barra sinistra e area principale.</span>
+              </div>
+              <label>
+                Barra sinistra
+                <input id="sidebarFontScale" type="range" min="60" max="112" step="2" />
+              </label>
+              <div class="setup-readout">
+                <span>Scala sidebar</span>
+                <strong id="sidebarFontScaleValue">88%</strong>
+              </div>
+              <label>
+                Area principale
+                <input id="contentFontScale" type="range" min="60" max="112" step="2" />
+              </label>
+              <div class="setup-readout">
+                <span>Scala contenuto</span>
+                <strong id="contentFontScaleValue">88%</strong>
+              </div>
+              <button type="button" class="secondary-btn config-action subtle" id="resetSetupBtn">Ripristina aspetto predefinito</button>
+            </div>
+          </section>
+
+          <section class="config-subsection" data-config-panel="backup" aria-labelledby="backupConfigTitle">
+            <h3 id="backupConfigTitle">Backup e Restore</h3>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Salvataggio completo</strong>
+                <span>Crea uno zip con spazi, progetti, attività e allegati.</span>
+              </div>
+              <button class="nav-action compact config-action" id="backupProjectsBtn">
+                <span class="nav-icon" aria-hidden="true">⇣</span>
+                Crea backup .zip
+              </button>
+            </div>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Ripristino</strong>
+                <span>Carica un backup e scegli cosa importare.</span>
+              </div>
+              <button class="nav-action compact config-action" id="restoreProjectsBtn">
+                <span class="nav-icon" aria-hidden="true">⇡</span>
+                Ripristina da backup
+              </button>
+              <div class="restore-file-slot" id="restoreFileSlot" hidden>
+                <label>
+                  File backup
+                  <input id="restoreFileInput" type="file" accept="text/plain,application/json,application/zip,.txt,.json,.zip" />
+                </label>
+              </div>
+            </div>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Backup automatico</strong>
+                <span>Cartella dove salvare copie automatiche in formato .zip.</span>
+              </div>
+              <div class="attachment-editor-config">
+                <span>Cartella selezionata</span>
+                <strong id="autoBackupDirectoryName">Non impostata</strong>
+                <label class="compact-select-field">
+                  Frequenza
+                  <select id="autoBackupFrequency">
+                    <option value="1">1 ora</option>
+                    <option value="3">3 ore</option>
+                    <option value="6">6 ore</option>
+                    <option value="12">12 ore</option>
+                    <option value="24">24 ore</option>
+                  </select>
+                </label>
+                <div class="attachment-editor-actions">
+                  <button type="button" class="secondary-btn config-action" id="selectAutoBackupDirectoryBtn">Scegli cartella backup</button>
+                  <button type="button" class="secondary-btn config-action subtle" id="clearAutoBackupDirectoryBtn">Disattiva</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="config-subsection" data-config-panel="remote" aria-labelledby="remoteSyncConfigTitle">
+            <h3 id="remoteSyncConfigTitle">Replica CouchDB</h3>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Sincronizzazione remota</strong>
+                <span>Sincronizza automaticamente PouchDB locale con il database remoto.</span>
+              </div>
+              <div class="attachment-editor-config remote-sync-config">
+                <label class="inline-check">
+                  <input id="remoteSyncEnabled" type="checkbox" />
+                  <span>Replica remota attiva</span>
+                </label>
+                <label>
+                  URL database remoto
+                  <input id="remoteCouchUrl" type="url" spellcheck="false" autocomplete="off" />
+                </label>
+                <label>
+                  Utente CouchDB
+                  <input id="remoteCouchUser" type="text" spellcheck="false" autocomplete="username" />
+                </label>
+                <label>
+                  Password CouchDB
+                  <input id="remoteCouchPassword" type="password" autocomplete="current-password" />
+                </label>
+                <label class="compact-select-field">
+                  Frequenza automatica
+                  <select id="remoteSyncFrequency">
+                    <option value="1">1 ora</option>
+                    <option value="3">3 ore</option>
+                    <option value="6">6 ore</option>
+                    <option value="12">12 ore</option>
+                  </select>
+                </label>
+                <div class="remote-sync-state">
+                  <span>Stato replica</span>
+                  <strong id="remoteSyncStatus">Non sincronizzato</strong>
+                </div>
+                <button type="button" class="secondary-btn config-action" id="remoteSyncNowBtn">Sincronizza ora</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="config-subsection data-safety-subsection" data-config-panel="safety" aria-labelledby="dataSafetyConfigTitle">
+            <h3 id="dataSafetyConfigTitle">Centro sicurezza dati</h3>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Stato dei dati</strong>
+                <span>Controlla salvataggio locale, backup automatico e consistenza degli allegati.</span>
+              </div>
+              <div class="data-safety-center" id="dataSafetyCenter"></div>
+            </div>
+            <div class="config-block">
+              <div class="config-block-title">
+                <strong>Allegati collegati</strong>
+                <span>Verifica se i file associati alle attività sono ancora raggiungibili su disco.</span>
+              </div>
+              <button type="button" class="secondary-btn config-action" id="verifyAttachmentsBtn">Verifica allegati mancanti</button>
+              <div class="attachment-check-result" id="attachmentCheckResult"></div>
+            </div>
+          </section>
+          </div>
+        </div>
+
+      </section>
+    </dialog>
+
+    <dialog id="backupDialog">
+      <form method="dialog" class="dialog-card compact" id="backupForm">
+        <header>
+          <h3>Backup progetti</h3>
+          <button type="button" class="icon-btn" data-close-dialog aria-label="Chiudi">×</button>
+        </header>
+        <p class="dialog-note">Seleziona gli spazi di lavoro e i progetti da includere nel file di backup.</p>
+        <div class="project-check-list" id="backupWorkspaceList"></div>
+        <div class="project-check-list" id="backupProjectList"></div>
+        <footer>
+          <span></span>
+          <button type="button" class="secondary-btn" data-close-dialog>Annulla</button>
+          <button type="submit" class="primary-btn">Crea backup</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="restoreDialog">
+      <form method="dialog" class="dialog-card compact" id="restoreForm">
+        <header>
+          <h3>Restore progetti</h3>
+          <button type="button" class="icon-btn" data-close-dialog aria-label="Chiudi">×</button>
+        </header>
+        <p class="dialog-note">Seleziona i progetti da importare dal backup.</p>
+        <div class="project-check-list" id="restoreProjectList"></div>
+        <footer>
+          <span></span>
+          <button type="button" class="secondary-btn" data-close-dialog>Annulla</button>
+          <button type="submit" class="primary-btn">Attiva restore</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <div class="undo-toast" id="undoToast" hidden></div>
+
+    <script src="sample-data.js"></script>
+    <script src="pouchdb.min.js"></script>
+    <script src="app.bundle.js"></script>
+  </body>
+</html>
