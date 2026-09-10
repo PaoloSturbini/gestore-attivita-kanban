@@ -2268,6 +2268,7 @@ td {
 }
 
 .project-quick-actions {
+  position: relative;
   grid-row: 4;
   display: flex;
   flex-wrap: wrap;
@@ -2297,6 +2298,42 @@ td {
   background: var(--accent-soft);
 }
 
+.project-edit-btn {
+  border-color: var(--accent);
+  color: #fff;
+  background: var(--accent);
+}
+
+.project-edit-btn:hover {
+  color: #fff;
+  background: color-mix(in srgb, var(--accent) 84%, #111827);
+}
+
+.project-actions-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  display: grid;
+  gap: 7px;
+  min-width: 148px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--surface);
+  box-shadow: 0 16px 42px rgba(23, 23, 36, 0.18), 0 4px 12px rgba(23, 23, 36, 0.1);
+}
+
+.project-actions-popover .secondary-btn,
+.project-actions-popover .danger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 32px;
+  padding: 0 12px;
+  text-align: left;
+}
+
 .project-note-line {
   display: block;
   min-height: 20px;
@@ -2311,30 +2348,6 @@ td {
 
 .project-note-line.empty {
   border-left-color: transparent;
-}
-
-.project-summary-actions {
-  display: flex;
-  justify-content: flex-start;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s ease;
-}
-
-.project-summary:hover .project-summary-actions,
-.project-summary:focus-within .project-summary-actions,
-.project-summary:focus-visible .project-summary-actions {
-  opacity: 1;
-  visibility: visible;
-}
-
-.project-summary-actions .secondary-btn,
-.project-summary-actions .danger-btn {
-  min-height: 32px;
-  padding: 0 12px;
 }
 
 .dashboard-view {
@@ -2940,6 +2953,56 @@ textarea {
   gap: 6px;
 }
 
+.attachment-remove-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(18, 22, 34, 0.28);
+}
+
+.attachment-remove-card {
+  display: grid;
+  gap: 12px;
+  width: min(430px, calc(100vw - 36px));
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  background: var(--surface);
+  box-shadow: 0 18px 56px rgba(20, 20, 35, 0.24);
+}
+
+.attachment-remove-card h4,
+.attachment-remove-card p {
+  margin: 0;
+}
+
+.attachment-remove-card h4 {
+  color: var(--text);
+  font-size: calc(17px * var(--font-scale));
+}
+
+.attachment-remove-card p,
+.attachment-remove-card small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.attachment-remove-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-remove-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 8px;
+}
+
 .subtask-field {
   display: grid;
   grid-template-columns: 28px minmax(240px, 1fr) 128px 118px 32px;
@@ -3268,7 +3331,7 @@ textarea {
 
 :root[data-theme="dark"] .project-tabs,
 :root[data-theme="dark"] .view-strip,
-:root[data-theme="dark"] .project-summary-actions,
+:root[data-theme="dark"] .project-actions-popover,
 :root[data-theme="dark"] .project-deadline-group header,
 :root[data-theme="dark"] .dialog-card header,
 :root[data-theme="dark"] .dialog-card footer,
@@ -3409,6 +3472,8 @@ textarea {
   }
 
   .sidebar {
+    height: auto;
+    max-height: 42dvh;
     min-height: auto;
     border-right: 0;
     border-bottom: 1px solid var(--line);
@@ -3446,5 +3511,52 @@ textarea {
 
   .form-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 780px) and (pointer: coarse) {
+  body {
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
+  }
+
+  .app-shell {
+    display: flex;
+    min-height: 100dvh;
+    height: 100dvh;
+    flex-direction: column;
+  }
+
+  .sidebar {
+    flex: 0 0 auto;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  main {
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  button,
+  .project-item,
+  .deadline-link,
+  .priority-link {
+    min-height: 44px;
+  }
+
+  dialog {
+    width: calc(100vw - 20px);
+    max-width: none;
+    max-height: calc(100dvh - 20px);
+    margin: auto;
+  }
+
+  .board {
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .column {
+    scroll-snap-align: start;
   }
 }

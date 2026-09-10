@@ -1,4 +1,6 @@
 .DS_Store
+xcuserdata/
+*.xcuserstate
 .ts/
 .zennotes/
 .env
@@ -14,4 +16,3 @@ src/.codex-write-test
 deploy/couchdb/.env
 deploy/portal/.env
 deploy/portal/users.json
-
