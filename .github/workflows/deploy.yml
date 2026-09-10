@@ -31,6 +31,11 @@ jobs:
           deploy_dir=/srv/repos/gestore-attivita-kanban
           test "$(hostname -s)" = x1pro
           test -d "$deploy_dir/.git"
+          if [ -f "$deploy_dir/deploy/couchdb/.env" ]; then couch_state=present; else couch_state=missing; fi
+          if [ -f "$deploy_dir/deploy/portal/.env" ]; then portal_state=present; else portal_state=missing; fi
+          if docker inspect kanban-couchdb >/dev/null 2>&1; then couch_container=present; else couch_container=missing; fi
+          if docker inspect kanban-portal >/dev/null 2>&1; then portal_container=present; else portal_container=missing; fi
+          echo "CONFIG-STATE: couchdb=$couch_state portal=$portal_state containers=$couch_container/$portal_container"
 
           container_value() {
             docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$1" 2>/dev/null \
