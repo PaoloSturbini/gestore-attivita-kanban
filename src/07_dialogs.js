@@ -217,6 +217,75 @@ function deleteTaskFromDialog() {
   });
 }
 
+function removeAttachmentFromDraft(attachmentId) {
+  taskAttachmentDraft = taskAttachmentDraft.filter((attachment) => attachment.id !== attachmentId);
+  renderAttachmentList();
+  scheduleTaskAutosave();
+}
+
+function closeAttachmentRemovePopup() {
+  document.querySelector(".attachment-remove-popup")?.remove();
+}
+
+function openAttachmentRemovePopup(attachmentId) {
+  const attachment = taskAttachmentDraft.find((item) => item.id === attachmentId);
+  if (!attachment) return;
+  closeAttachmentRemovePopup();
+  const popup = document.createElement("div");
+  popup.className = "attachment-remove-popup";
+  popup.setAttribute("role", "dialog");
+  popup.setAttribute("aria-modal", "true");
+  popup.innerHTML = `
+    <div class="attachment-remove-card">
+      <h4>Rimuovere l'allegato?</h4>
+      <p>
+        Vuoi solo scollegare <strong>${escapeHtml(attachment.name)}</strong> dall'attività
+        oppure spostare anche il file nel Cestino?
+      </p>
+      <small>${escapeHtml(attachment.path || "File non ancora collegato sul disco.")}</small>
+      <div class="attachment-remove-actions">
+        <button type="button" class="secondary-btn" data-attachment-remove-action="cancel">Annulla</button>
+        <button type="button" class="small-btn" data-attachment-remove-action="remove">Rimuovi</button>
+        <button type="button" class="danger-btn" data-attachment-remove-action="trash" ${attachment.path ? "" : "disabled"}>Elimina</button>
+      </div>
+    </div>
+  `;
+  popup.addEventListener("click", (event) => {
+    if (event.target === popup) closeAttachmentRemovePopup();
+  });
+  popup.querySelectorAll("[data-attachment-remove-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = button.dataset.attachmentRemoveAction;
+      if (action === "cancel") {
+        closeAttachmentRemovePopup();
+        return;
+      }
+      if (action === "remove") {
+        removeAttachmentFromDraft(attachment.id);
+        closeAttachmentRemovePopup();
+        return;
+      }
+      if (action === "trash") {
+        if (!attachment.path || !window.webkit?.messageHandlers?.trashTaskAttachment) {
+          alert("L'eliminazione fisica è disponibile solo nell'app macOS.");
+          return;
+        }
+        pendingAttachmentTrash = attachment.id;
+        popup.querySelectorAll("button").forEach((item) => {
+          item.disabled = true;
+        });
+        window.webkit.messageHandlers.trashTaskAttachment.postMessage({
+          id: attachment.id,
+          name: attachment.name,
+          path: attachment.path,
+        });
+      }
+    });
+  });
+  (els.taskDialog || document.body).appendChild(popup);
+  popup.querySelector("[data-attachment-remove-action='cancel']")?.focus();
+}
+
 function renderAttachmentList() {
   if (!els.attachmentList) return;
   if (!taskAttachmentDraft.length) {
@@ -249,9 +318,7 @@ function renderAttachmentList() {
   });
   els.attachmentList.querySelectorAll("[data-remove-attachment]").forEach((button) => {
     button.addEventListener("click", () => {
-      taskAttachmentDraft = taskAttachmentDraft.filter((attachment) => attachment.id !== button.dataset.removeAttachment);
-      renderAttachmentList();
-      scheduleTaskAutosave();
+      openAttachmentRemovePopup(button.dataset.removeAttachment);
     });
   });
 }
@@ -346,6 +413,19 @@ function renderAttachmentConfig() {
 
 window.receiveTaskAttachment = (attachment) => {
   addTaskAttachment(attachment);
+};
+
+window.receiveTaskAttachmentTrashResult = (result) => {
+  const attachmentId = String(result?.id || pendingAttachmentTrash || "");
+  pendingAttachmentTrash = null;
+  if (result?.ok && attachmentId) {
+    removeAttachmentFromDraft(attachmentId);
+    closeAttachmentRemovePopup();
+    return;
+  }
+  const message = String(result?.message || "Non sono riuscito a spostare il file nel Cestino.");
+  alert(message);
+  closeAttachmentRemovePopup();
 };
 
 window.receiveAttachmentEditor = (editor) => {

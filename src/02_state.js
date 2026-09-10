@@ -486,6 +486,7 @@ function workspaceUiSnapshot(ui = state.ui) {
     remindersLastSyncError: ui.remindersLastSyncError || "",
     autoBackupDirectoryName: ui.autoBackupDirectoryName || "",
     autoBackupDirectoryPath: ui.autoBackupDirectoryPath || "",
+    autoBackupDirectoryBookmark: ui.autoBackupDirectoryBookmark || "",
     autoBackupFrequencyHours: normalizeAutoBackupFrequency(ui.autoBackupFrequencyHours),
     lastAutoBackupAt: ui.lastAutoBackupAt || "",
     lastAutoBackupPath: ui.lastAutoBackupPath || "",
@@ -955,6 +956,7 @@ function normalizeState(nextState) {
   nextState.ui.attachmentDirectoryPath = String(nextState.ui.attachmentDirectoryPath || "");
   nextState.ui.autoBackupDirectoryName = String(nextState.ui.autoBackupDirectoryName || "");
   nextState.ui.autoBackupDirectoryPath = String(nextState.ui.autoBackupDirectoryPath || "");
+  nextState.ui.autoBackupDirectoryBookmark = String(nextState.ui.autoBackupDirectoryBookmark || "");
   nextState.ui.autoBackupFrequencyHours = normalizeAutoBackupFrequency(nextState.ui.autoBackupFrequencyHours);
   nextState.ui.lastAutoBackupAt = String(nextState.ui.lastAutoBackupAt || "");
   nextState.ui.lastAutoBackupPath = String(nextState.ui.lastAutoBackupPath || "");
@@ -1104,10 +1106,15 @@ function stopRemoteReplication(status = "Disattivata") {
   clearTimeout(remoteSyncTimer);
   clearTimeout(remoteAutoSyncTimer);
   clearTimeout(remoteBackoffTimer);
+  clearTimeout(remoteApplyTimer);
   remoteSyncTimer = null;
   remoteAutoSyncTimer = null;
   remoteBackoffTimer = null;
+  remoteApplyTimer = null;
   remoteSyncFailureCount = 0;
+  remoteSyncQueued = false;
+  pendingRemoteKanbanApply = false;
+  pendingRemoteState = null;
   if (remoteSyncHandler?.cancel) remoteSyncHandler.cancel();
   remoteSyncHandler = null;
   remoteDb = null;
@@ -1191,8 +1198,65 @@ function scheduleRemoteAutoSync() {
 
 function queueRemoteSyncNow() {
   if (!state.sync?.remoteEnabled) return;
+  if (remoteSyncInFlight) {
+    remoteSyncQueued = true;
+    return;
+  }
   clearTimeout(remoteSyncTimer);
   remoteSyncTimer = setTimeout(runRemoteSyncNow, 80);
+}
+
+function queueRemoteKanbanApply() {
+  pendingRemoteKanbanApply = true;
+  scheduleRemoteApply();
+}
+
+function queueRemoteStateApply(remoteState) {
+  if (!remoteState) return;
+  if (pendingRemoteState && compareStateFreshness(remoteState, pendingRemoteState) <= 0) return;
+  pendingRemoteState = remoteState;
+  scheduleRemoteApply();
+}
+
+function scheduleRemoteApply(delayMs = 80) {
+  clearTimeout(remoteApplyTimer);
+  remoteApplyTimer = setTimeout(processQueuedRemoteApply, delayMs);
+}
+
+function remoteApplyBlockedByLocalWork() {
+  return (
+    remoteSyncInFlight ||
+    pouchSaveInFlight ||
+    Boolean(pendingPouchStateText) ||
+    Boolean(taskAutosaveTimer) ||
+    Boolean(els.taskDialog?.open)
+  );
+}
+
+async function processQueuedRemoteApply() {
+  clearTimeout(remoteApplyTimer);
+  remoteApplyTimer = null;
+  if (remoteApplyInFlight || (!pendingRemoteKanbanApply && !pendingRemoteState)) return;
+  if (remoteApplyBlockedByLocalWork()) {
+    scheduleRemoteApply(600);
+    return;
+  }
+
+  remoteApplyInFlight = true;
+  try {
+    if (pendingRemoteKanbanApply) {
+      pendingRemoteKanbanApply = false;
+      await applyRemoteKanbanDocs();
+    }
+    if (pendingRemoteState) {
+      const remoteState = pendingRemoteState;
+      pendingRemoteState = null;
+      applyRemoteState(remoteState, { queuePouch: true });
+    }
+  } finally {
+    remoteApplyInFlight = false;
+    if (pendingRemoteKanbanApply || pendingRemoteState) scheduleRemoteApply();
+  }
 }
 
 function runPouchSync(db, remote) {
@@ -1222,7 +1286,10 @@ function runPouchSync(db, remote) {
 }
 
 async function runRemoteSyncNow() {
-  if (remoteSyncInFlight) return;
+  if (remoteSyncInFlight) {
+    remoteSyncQueued = true;
+    return;
+  }
   const db = getPouchDb();
   if (!db) return;
   state.sync = normalizeSyncSettings(state.sync);
@@ -1243,7 +1310,7 @@ async function runRemoteSyncNow() {
     const resolvedLocal = await resolveKanbanDocConflicts(db);
     const resolvedRemote = await resolveKanbanDocConflicts(remote);
     if (resolvedLocal || resolvedRemote) await runPouchSync(db, remote);
-    if (resolvedLocal) await applyRemoteKanbanDocs();
+    if (resolvedLocal) queueRemoteKanbanApply();
     remoteSyncFailureCount = 0;
     clearTimeout(remoteBackoffTimer);
     remoteBackoffTimer = null;
@@ -1256,6 +1323,11 @@ async function runRemoteSyncNow() {
     scheduleRemoteBackoffRetry();
   } finally {
     remoteSyncInFlight = false;
+    await processQueuedRemoteApply();
+    if (remoteSyncQueued) {
+      remoteSyncQueued = false;
+      queueRemoteSyncNow();
+    }
   }
 }
 
@@ -1270,38 +1342,40 @@ function handleRemoteSyncChange(change) {
 
   const docs = change?.change?.docs || [];
   if (change?.direction === "pull") {
-    if (docs.some((doc) => isKanbanDataDocId(doc?._id))) applyRemoteKanbanDocs();
-    docs.forEach(applyRemoteStateDoc);
+    if (docs.some((doc) => isKanbanDataDocId(doc?._id))) queueRemoteKanbanApply();
+    docs.forEach(queueRemoteStateDocApply);
   }
   renderRemoteSyncStatus();
 }
 
 async function applyRemoteKanbanDocs() {
   const db = getPouchDb();
-  if (!db) return;
+  if (!db) return false;
   try {
     const remoteState = await readKanbanDocsState(db);
-    if (!remoteState || compareStateFreshness(remoteState, state) <= 0) return;
-    state = normalizeState(remoteState);
-    pouchPersistenceInitialized = true;
-    suppressNextAutoBackup = true;
-    persistStateSnapshot(JSON.stringify(state));
-    render();
+    return applyRemoteState(remoteState);
   } catch (error) {
     console.error("Applicazione documenti remoti non riuscita", error);
+    return false;
   }
 }
 
-function applyRemoteStateDoc(doc) {
+function queueRemoteStateDocApply(doc) {
   if (!doc || doc._id !== POUCH_STATE_DOC_ID || !doc.stateText) return;
   const remoteState = safeParseState(doc.stateText);
   if (!remoteState || compareStateFreshness(remoteState, state) <= 0) return;
+  queueRemoteStateApply(remoteState);
+}
+
+function applyRemoteState(remoteState, { queuePouch = false } = {}) {
+  if (!remoteState || compareStateFreshness(remoteState, state) <= 0) return false;
   state = normalizeState(remoteState);
   pouchPersistenceInitialized = true;
   suppressNextAutoBackup = true;
   persistStateSnapshot(JSON.stringify(state));
-  queuePouchStateSave(JSON.stringify(state));
+  if (queuePouch) queuePouchStateSave(JSON.stringify(state));
   render();
+  return true;
 }
 
 function markRemoteSyncStatus(status, error = "") {

@@ -9,10 +9,10 @@
     "test": "node tests/run-tests.mjs",
     "bundle": "bash macos/bundle_app_js.sh",
     "build:mac": "bash macos/build_app.sh",
+    "build:ios": "bash ios/build_ios.sh",
     "portal:start": "cd deploy/portal && ./start.sh"
   },
   "engines": {
     "node": ">=24"
   }
 }
-

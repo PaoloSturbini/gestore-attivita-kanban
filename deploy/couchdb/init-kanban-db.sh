@@ -101,6 +101,16 @@ design_payload='{
     "by_type": {
       "map": "function (doc) { if (doc.type) emit(doc.type); }"
     },
+    "portal_users": {
+      "map": "function (doc) { if (doc.type === '\''kanban-portal-user'\'' && !doc.disabled) emit(doc.displayName || doc.username || doc._id, null); }"
+    },
+    "assignable_names": {
+      "map": "function (doc) { function emitName(name) { var value = String(name || \"\").trim(); if (value) emit(value, null); } if (doc.type === '\''kanban-task'\'') { emitName(doc.owner); if (Array.isArray(doc.visibleTo)) doc.visibleTo.forEach(emitName); if (Array.isArray(doc.subtasks)) doc.subtasks.forEach(function (subtask) { emitName(subtask && subtask.owner); }); } }",
+      "reduce": "_count"
+    },
+    "projects_by_id": {
+      "map": "function (doc) { if (doc.type === '\''kanban-project'\'') emit(doc._id, null); }"
+    },
     "tasks_by_owner": {
       "map": "function (doc) { if (doc.type === '\''kanban-task'\'' && doc.owner) emit([doc.owner, doc.workspaceId, doc.projectId], doc.updatedAt || null); }"
     },

@@ -1,11 +1,10 @@
-import { createReadStream, existsSync, readFileSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
-import { extname, join, normalize } from "node:path";
+import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   TEAM_VISIBLE_AS,
   normalizeNameList,
-  sha256,
   hmac as hmacWith,
   safeEqual,
   hashPassword,
@@ -22,7 +21,7 @@ import {
 } from "./lib.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
-const publicDir = join(here, "public");
+const publicDir = resolve(here, "public");
 const port = Number(process.env.PORT || 8787);
 const couchUrl = String(process.env.COUCHDB_URL || "http://127.0.0.1:5985").replace(/\/$/, "");
 const couchDb = String(process.env.COUCHDB_DB || "gestore-attivita-kanban");
@@ -51,6 +50,15 @@ const mimeTypes = {
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
   ".ico": "image/x-icon",
+};
+
+const SECURITY_HEADERS = {
+  "Content-Security-Policy": "default-src 'self'; base-uri 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=()",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
 };
 
 const server = createServer(async (req, res) => {
@@ -252,7 +260,7 @@ function portalUserFromDoc(doc) {
 }
 
 async function listPortalUsers() {
-  const result = await couchGet(`/${encodeURIComponent(couchDb)}/_all_docs?startkey=${encodeURIComponent(JSON.stringify("portal-user::"))}&endkey=${encodeURIComponent(JSON.stringify("portal-user::\ufff0"))}&include_docs=true`);
+  const result = await couchGetView("portal_users", { include_docs: true });
   return (result.rows || [])
     .map((row) => row.doc)
     .filter((doc) => doc && doc.type === "kanban-portal-user" && !doc.disabled)
@@ -267,16 +275,11 @@ async function listPortalUsers() {
 }
 
 async function listAssignableVisibleAs() {
-  const result = await couchGet(`/${encodeURIComponent(couchDb)}/_all_docs?include_docs=true`);
-  const names = new Set();
-  for (const row of result.rows || []) {
-    const task = row.doc || {};
-    if (task.type !== "kanban-task") continue;
-    if (task.owner) names.add(String(task.owner).trim());
-    for (const value of task.visibleTo || []) if (value) names.add(String(value).trim());
-    for (const subtask of task.subtasks || []) if (subtask.owner) names.add(String(subtask.owner).trim());
-  }
-  return [...names].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  const result = await couchGetView("assignable_names", { group: true });
+  return (result.rows || [])
+    .map((row) => String(row.key || "").trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
 }
 
 async function createPortalUser(req, res) {
@@ -352,7 +355,7 @@ async function listTasks(res, user) {
   const tasksById = new Map();
   const visibleAs = effectiveVisibleAs(user);
   if (user.role === "admin") {
-    const result = await couchGet(`/${encodeURIComponent(couchDb)}/_all_docs?include_docs=true`);
+    const result = await couchGetView("by_type", { key: "kanban-task", include_docs: true });
     for (const row of result.rows || []) {
       if (row.doc?.type === "kanban-task") tasksById.set(row.doc._id, row.doc);
     }
@@ -378,7 +381,7 @@ async function listTasks(res, user) {
 async function loadProjectNames(tasks) {
   const ids = [...new Set(tasks.map((task) => projectDocId(task.workspaceId, task.projectId)).filter(Boolean))];
   if (!ids.length) return new Map();
-  const result = await couchPost(`/${encodeURIComponent(couchDb)}/_all_docs?include_docs=true`, { keys: ids });
+  const result = await couchPostView("projects_by_id", { include_docs: true }, { keys: ids });
   const projects = new Map();
   for (const row of result.rows || []) {
     if (!row.doc) continue;
@@ -460,10 +463,19 @@ async function updateTask(req, res, user, docId) {
   sendJson(res, 200, { task: publicTask(next, new Map(), user) });
 }
 
-async function couchGetView(viewName, params) {
+function couchViewPath(viewName, params = {}) {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) search.set(key, typeof value === "string" ? value : JSON.stringify(value));
-  return couchGet(`/${encodeURIComponent(couchDb)}/_design/kanban/_view/${viewName}?${search}`);
+  const query = search.toString();
+  return `/${encodeURIComponent(couchDb)}/_design/kanban/_view/${encodeURIComponent(viewName)}${query ? `?${query}` : ""}`;
+}
+
+async function couchGetView(viewName, params = {}) {
+  return couchGet(couchViewPath(viewName, params));
+}
+
+async function couchPostView(viewName, params, body) {
+  return couchPost(couchViewPath(viewName, params), body);
 }
 
 async function couchGet(path) {
@@ -549,20 +561,41 @@ async function readJson(req) {
 }
 
 function sendJson(res, status, body) {
-  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+  res.writeHead(status, { ...SECURITY_HEADERS, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   res.end(JSON.stringify(body));
 }
 
 function serveStatic(req, res, url) {
   if (req.method !== "GET" && req.method !== "HEAD") return sendJson(res, 405, { error: "method_not_allowed" });
-  const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
-  const filePath = normalize(join(publicDir, pathname));
-  if (!filePath.startsWith(publicDir) || !existsSync(filePath)) {
-    res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+  const filePath = staticFilePath(url.pathname);
+  if (!filePath || !isStaticFile(filePath)) {
+    res.writeHead(404, { ...SECURITY_HEADERS, "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
     res.end("Not found");
     return;
   }
-  res.writeHead(200, { "Content-Type": mimeTypes[extname(filePath)] || "application/octet-stream" });
+  res.writeHead(200, { ...SECURITY_HEADERS, "Content-Type": mimeTypes[extname(filePath)] || "application/octet-stream", "Cache-Control": "no-store" });
   if (req.method === "HEAD") res.end();
   else createReadStream(filePath).pipe(res);
+}
+
+function staticFilePath(pathname) {
+  let decoded = "";
+  try {
+    decoded = decodeURIComponent(String(pathname || "/"));
+  } catch {
+    return "";
+  }
+  const requested = decoded === "/" ? "index.html" : decoded.replace(/^\/+/, "");
+  const filePath = resolve(publicDir, requested);
+  const relativePath = relative(publicDir, filePath);
+  if (!relativePath || relativePath === ".." || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) return "";
+  return filePath;
+}
+
+function isStaticFile(filePath) {
+  try {
+    return existsSync(filePath) && statSync(filePath).isFile();
+  } catch {
+    return false;
+  }
 }

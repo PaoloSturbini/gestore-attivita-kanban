@@ -1,0 +1,258 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* GestoreKanbanIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* GestoreKanbanIOSApp.swift */; };
+		A10000000000000000000002 /* KanbanWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* KanbanWebView.swift */; };
+		A10000000000000000000003 /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* index.html */; };
+		A10000000000000000000004 /* styles.css in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* styles.css */; };
+		A10000000000000000000005 /* app.bundle.js in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* app.bundle.js */; };
+		A10000000000000000000006 /* sample-data.js in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* sample-data.js */; };
+		A10000000000000000000007 /* pouchdb.min.js in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* pouchdb.min.js */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* GestoreKanbanIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GestoreKanbanIOSApp.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* KanbanWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KanbanWebView.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000004 /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
+		A20000000000000000000005 /* styles.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = styles.css; sourceTree = "<group>"; };
+		A20000000000000000000006 /* app.bundle.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = app.bundle.js; sourceTree = "<group>"; };
+		A20000000000000000000007 /* sample-data.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "sample-data.js"; sourceTree = "<group>"; };
+		A20000000000000000000008 /* pouchdb.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = pouchdb.min.js; sourceTree = "<group>"; };
+		A20000000000000000000009 /* Gestore attività Kanban.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Gestore attività Kanban.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A40000000000000000000002 /* GestoreKanbanIOS */,
+				A40000000000000000000003 /* Web */,
+				A40000000000000000000004 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A40000000000000000000002 /* GestoreKanbanIOS */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* GestoreKanbanIOSApp.swift */,
+				A20000000000000000000002 /* KanbanWebView.swift */,
+				A20000000000000000000003 /* Info.plist */,
+			);
+			path = GestoreKanbanIOS;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000003 /* Web */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000004 /* index.html */,
+				A20000000000000000000005 /* styles.css */,
+				A20000000000000000000006 /* app.bundle.js */,
+				A20000000000000000000007 /* sample-data.js */,
+				A20000000000000000000008 /* pouchdb.min.js */,
+			);
+			name = Web;
+			path = ../assets;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000004 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000009 /* Gestore attività Kanban.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* GestoreKanbanIOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000002 /* Build configuration list for PBXNativeTarget "GestoreKanbanIOS" */;
+			buildPhases = (
+				A60000000000000000000001 /* Sources */,
+				A30000000000000000000001 /* Frameworks */,
+				A60000000000000000000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GestoreKanbanIOS;
+			productName = "Gestore attività Kanban";
+			productReference = A20000000000000000000009 /* Gestore attività Kanban.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A70000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					A50000000000000000000001 = {
+						CreatedOnToolsVersion = 26.6;
+					};
+				};
+			};
+			buildConfigurationList = A90000000000000000000001 /* Build configuration list for PBXProject "GestoreKanbanIOS" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = it;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				it,
+				Base,
+			);
+			mainGroup = A40000000000000000000001;
+			productRefGroup = A40000000000000000000004 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000000000000000000001 /* GestoreKanbanIOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A60000000000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000003 /* index.html in Resources */,
+				A10000000000000000000004 /* styles.css in Resources */,
+				A10000000000000000000005 /* app.bundle.js in Resources */,
+				A10000000000000000000006 /* sample-data.js in Resources */,
+				A10000000000000000000007 /* pouchdb.min.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A60000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* GestoreKanbanIOSApp.swift in Sources */,
+				A10000000000000000000002 /* KanbanWebView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		B10000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		B10000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		B10000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F9SXX7XX48;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = GestoreKanbanIOS/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "it.pst.gestore-attivita-kanban.ios";
+				PRODUCT_NAME = "Gestore attività Kanban";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B10000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F9SXX7XX48;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = GestoreKanbanIOS/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "it.pst.gestore-attivita-kanban.ios";
+				PRODUCT_NAME = "Gestore attività Kanban";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A90000000000000000000001 /* Build configuration list for PBXProject "GestoreKanbanIOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B10000000000000000000001 /* Debug */,
+				B10000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A90000000000000000000002 /* Build configuration list for PBXNativeTarget "GestoreKanbanIOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B10000000000000000000003 /* Debug */,
+				B10000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A70000000000000000000001 /* Project object */;
+}

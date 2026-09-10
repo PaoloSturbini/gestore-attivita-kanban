@@ -72,6 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         userContentController.add(self, name: "pickTaskAttachment")
         userContentController.add(self, name: "createTaskAttachment")
         userContentController.add(self, name: "openTaskAttachment")
+        userContentController.add(self, name: "trashTaskAttachment")
         userContentController.add(self, name: "exportBackupZip")
         userContentController.add(self, name: "autoBackupZip")
         userContentController.add(self, name: "verifyAttachments")
@@ -148,11 +149,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             return
         }
 
+        if message.name == "trashTaskAttachment" {
+            trashTaskAttachment(message.body as? [String: Any] ?? [:])
+            return
+        }
+
         if message.name == "exportBackupZip" {
             guard let payload = message.body as? [String: Any],
                   let filename = payload["filename"] as? String,
                   let backupText = payload["backupText"] as? String else { return }
-            exportBackupZip(filename: filename, backupText: backupText, files: payload["files"] as? [[String: Any]] ?? [])
+            exportBackupZip(
+                filename: filename,
+                backupText: backupText,
+                directoryPath: payload["directoryPath"] as? String,
+                directoryBookmark: payload["directoryBookmark"] as? String,
+                files: payload["files"] as? [[String: Any]] ?? []
+            )
             return
         }
 
@@ -360,11 +372,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             guard response == .OK, let url = panel.url else { return }
             do {
                 try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                let bookmark = (try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil).base64EncodedString()) ?? ""
                 self.postJSON(
                     functionName: "receiveAutoBackupDirectory",
                     payload: [
                         "name": url.lastPathComponent,
                         "path": url.path,
+                        "bookmark": bookmark,
                     ]
                 )
             } catch {
@@ -429,6 +443,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             return
         }
         openFile(url, editorPath: payload["editorPath"] as? String)
+    }
+
+    private func trashTaskAttachment(_ payload: [String: Any]) {
+        let id = payload["id"] as? String ?? ""
+        guard let path = payload["path"] as? String, !path.isEmpty else {
+            postJSON(functionName: "receiveTaskAttachmentTrashResult", payload: [
+                "id": id,
+                "ok": false,
+                "message": "Percorso allegato non valido.",
+            ])
+            return
+        }
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            postJSON(functionName: "receiveTaskAttachmentTrashResult", payload: [
+                "id": id,
+                "ok": false,
+                "message": "Il file allegato non esiste piu sul disco.",
+            ])
+            return
+        }
+        do {
+            var trashedURL: NSURL?
+            try FileManager.default.trashItem(at: url, resultingItemURL: &trashedURL)
+            postJSON(functionName: "receiveTaskAttachmentTrashResult", payload: [
+                "id": id,
+                "ok": true,
+                "trashedPath": trashedURL?.path ?? "",
+            ])
+        } catch {
+            postJSON(functionName: "receiveTaskAttachmentTrashResult", payload: [
+                "id": id,
+                "ok": false,
+                "message": error.localizedDescription,
+            ])
+        }
     }
 
     private func storeAttachmentIfNeeded(_ sourceURL: URL, directoryPath: String?) throws -> URL {
@@ -723,26 +773,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         postJSON(functionName: "reportNativeAttachmentError", payload: ["message": message])
     }
 
-    private func exportBackupZip(filename: String, backupText: String, files: [[String: Any]]) {
-        let panel = NSSavePanel()
+    private func exportBackupZip(filename: String, backupText: String, directoryPath: String?, directoryBookmark: String?, files: [[String: Any]]) {
         let cleanFilename = sanitizedFilename(filename.isEmpty ? "backup-spazi-kanban.zip" : filename)
-        panel.nameFieldStringValue = cleanFilename.lowercased().hasSuffix(".zip") ? cleanFilename : "\(cleanFilename).zip"
+        let finalFilename = cleanFilename.lowercased().hasSuffix(".zip") ? cleanFilename : "\(cleanFilename).zip"
+
+        if let directoryPath,
+           !directoryPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            do {
+                let scopedDirectory = try resolvedDirectoryURL(path: directoryPath, bookmarkBase64: directoryBookmark)
+                defer { scopedDirectory.stopAccessing() }
+                let destinationURL = scopedDirectory.url.appendingPathComponent(finalFilename, isDirectory: false)
+                let missing = try createBackupZip(backupText: backupText, files: files, destinationURL: destinationURL)
+                if !missing.isEmpty {
+                    presentWarning("Backup creato", informativeText: "\(missing.count) allegati non sono stati trovati sul disco e non sono stati inclusi nello zip.")
+                }
+            } catch {
+                openBackupSavePanel(filename: finalFilename, backupText: backupText, files: files, directoryURL: URL(fileURLWithPath: directoryPath, isDirectory: true))
+            }
+            return
+        }
+
+        openBackupSavePanel(filename: finalFilename, backupText: backupText, files: files, directoryURL: nil)
+    }
+
+    private func openBackupSavePanel(filename: String, backupText: String, files: [[String: Any]], directoryURL: URL?) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = filename
         panel.allowedContentTypes = [UTType(filenameExtension: "zip")].compactMap { $0 }
         panel.canCreateDirectories = true
+        panel.directoryURL = directoryURL
 
         panel.beginSheetModal(for: window) { response in
             guard response == .OK, let url = panel.url else { return }
-            let tempRoot = FileManager.default.temporaryDirectory.appendingPathComponent("KanbanBackup-\(UUID().uuidString)", isDirectory: true)
             do {
-                try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
-                defer { try? FileManager.default.removeItem(at: tempRoot) }
-
-                try backupText.write(to: tempRoot.appendingPathComponent("backup.json"), atomically: true, encoding: .utf8)
-                let missing = try self.copyBackupAttachments(files, into: tempRoot)
-                if FileManager.default.fileExists(atPath: url.path) {
-                    try FileManager.default.removeItem(at: url)
+                let didStartAccessing = url.startAccessingSecurityScopedResource()
+                defer {
+                    if didStartAccessing {
+                        url.stopAccessingSecurityScopedResource()
+                    }
                 }
-                try self.runDitto(arguments: ["-c", "-k", "--norsrc", tempRoot.path, url.path])
+                let missing = try self.createBackupZip(backupText: backupText, files: files, destinationURL: url)
                 if !missing.isEmpty {
                     self.presentWarning("Backup creato", informativeText: "\(missing.count) allegati non sono stati trovati sul disco e non sono stati inclusi nello zip.")
                 }
@@ -750,6 +820,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                 self.presentExportError(error)
             }
         }
+    }
+
+    private func resolvedDirectoryURL(path: String, bookmarkBase64: String?) throws -> (url: URL, stopAccessing: () -> Void) {
+        if let bookmarkBase64,
+           let bookmarkData = Data(base64Encoded: bookmarkBase64),
+           !bookmarkData.isEmpty {
+            var isStale = false
+            let url = try URL(
+                resolvingBookmarkData: bookmarkData,
+                options: [.withSecurityScope],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+            let didStartAccessing = url.startAccessingSecurityScopedResource()
+            return (url, {
+                if didStartAccessing {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            })
+        }
+        return (URL(fileURLWithPath: path, isDirectory: true), {})
+    }
+
+    private func createBackupZip(backupText: String, files: [[String: Any]], destinationURL: URL) throws -> [String] {
+        let tempRoot = FileManager.default.temporaryDirectory.appendingPathComponent("KanbanBackup-\(UUID().uuidString)", isDirectory: true)
+        let tempZip = FileManager.default.temporaryDirectory.appendingPathComponent("KanbanBackup-\(UUID().uuidString).zip", isDirectory: false)
+        try FileManager.default.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: tempRoot)
+            try? FileManager.default.removeItem(at: tempZip)
+        }
+
+        try backupText.write(to: tempRoot.appendingPathComponent("backup.json"), atomically: true, encoding: .utf8)
+        let missing = try copyBackupAttachments(files, into: tempRoot)
+        try runDitto(arguments: ["-c", "-k", "--norsrc", tempRoot.path, tempZip.path])
+        if FileManager.default.fileExists(atPath: destinationURL.path) {
+            try FileManager.default.removeItem(at: destinationURL)
+        }
+        try FileManager.default.copyItem(at: tempZip, to: destinationURL)
+        return missing
     }
 
     private func autoBackupZip(_ payload: [String: Any]) {
@@ -764,13 +875,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             return
         }
 
-        let directoryURL = URL(fileURLWithPath: directoryPath, isDirectory: true)
         let cleanFilename = sanitizedFilename(filename.isEmpty ? "backup-automatico-kanban.zip" : filename)
         let finalFilename = cleanFilename.lowercased().hasSuffix(".zip") ? cleanFilename : "\(cleanFilename).zip"
-        let destinationURL = directoryURL.appendingPathComponent(finalFilename, isDirectory: false)
         let tempRoot = FileManager.default.temporaryDirectory.appendingPathComponent("KanbanAutoBackup-\(UUID().uuidString)", isDirectory: true)
 
         do {
+            let scopedDirectory = try resolvedDirectoryURL(path: directoryPath, bookmarkBase64: payload["directoryBookmark"] as? String)
+            defer { scopedDirectory.stopAccessing() }
+            let directoryURL = scopedDirectory.url
+            let destinationURL = directoryURL.appendingPathComponent(finalFilename, isDirectory: false)
             try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: tempRoot) }

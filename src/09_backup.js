@@ -179,6 +179,8 @@ function downloadBackupZip(filename, backup, attachmentFiles = []) {
     window.webkit.messageHandlers.exportBackupZip.postMessage({
       filename,
       backupText,
+      directoryPath: state.ui.autoBackupDirectoryPath || "",
+      directoryBookmark: state.ui.autoBackupDirectoryBookmark || "",
       files: attachmentFiles,
     });
     return;
@@ -238,6 +240,7 @@ function runAutoBackupNow() {
   const backupText = JSON.stringify(backup, null, 2);
   window.webkit.messageHandlers.autoBackupZip.postMessage({
     directoryPath: state.ui.autoBackupDirectoryPath,
+    directoryBookmark: state.ui.autoBackupDirectoryBookmark || "",
     filename: `backup-automatico-kanban-${autoBackupTimestamp(createdAt)}.zip`,
     backupText,
     files: attachmentFiles,
@@ -261,6 +264,7 @@ function selectAutoBackupDirectory() {
 function clearAutoBackupDirectory() {
   state.ui.autoBackupDirectoryName = "";
   state.ui.autoBackupDirectoryPath = "";
+  state.ui.autoBackupDirectoryBookmark = "";
   state.ui.lastAutoBackupError = "";
   clearTimeout(autoBackupTimer);
   renderAutoBackupConfig();
@@ -444,6 +448,7 @@ function renderRemoteSyncConfig() {
 window.receiveAutoBackupDirectory = (directory) => {
   state.ui.autoBackupDirectoryName = String(directory?.name || "");
   state.ui.autoBackupDirectoryPath = String(directory?.path || "");
+  state.ui.autoBackupDirectoryBookmark = String(directory?.bookmark || "");
   state.ui.lastAutoBackupError = "";
   renderAutoBackupConfig();
   renderDataSafetyCenter();
@@ -624,6 +629,7 @@ function restoreConfigurationFromBackup(parsed) {
   if (typeof config.attachmentDirectoryPath === "string") state.ui.attachmentDirectoryPath = config.attachmentDirectoryPath;
   if (typeof config.autoBackupDirectoryName === "string") state.ui.autoBackupDirectoryName = config.autoBackupDirectoryName;
   if (typeof config.autoBackupDirectoryPath === "string") state.ui.autoBackupDirectoryPath = config.autoBackupDirectoryPath;
+  if (typeof config.autoBackupDirectoryBookmark === "string") state.ui.autoBackupDirectoryBookmark = config.autoBackupDirectoryBookmark;
   state.ui.autoBackupFrequencyHours = normalizeAutoBackupFrequency(config.autoBackupFrequencyHours ?? state.ui.autoBackupFrequencyHours);
   if (config.remoteSync) state.sync = normalizeSyncSettings(config.remoteSync);
   if (Array.isArray(config.participants)) state.ui.participants = normalizeParticipants(config.participants);

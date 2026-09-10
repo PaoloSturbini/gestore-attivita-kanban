@@ -63,6 +63,7 @@ const initialData = {
     remindersLastSyncError: "",
     autoBackupDirectoryName: "",
     autoBackupDirectoryPath: "",
+    autoBackupDirectoryBookmark: "",
     autoBackupFrequencyHours: 6,
     lastAutoBackupAt: "",
     lastAutoBackupPath: "",
@@ -101,11 +102,13 @@ let pendingRestoreWorkspaces = [];
 let pendingRestoreKind = "";
 let projectCreateOpen = false;
 let pendingRenameProjectId = null;
+let pendingProjectActionsId = "";
 let workspaceCreateOpen = false;
 let pendingRenameParticipant = "";
 let workspaceRenameOpen = false;
 let pendingRenameWorkspaceId = "";
 let taskAttachmentDraft = [];
+let pendingAttachmentTrash = "";
 let taskAutosaveTimer = null;
 let pendingUndo = null;
 let undoToastTimer = null;
@@ -125,6 +128,11 @@ let remoteSyncSignature = "";
 let remoteSyncTimer = null;
 let remoteAutoSyncTimer = null;
 let remoteSyncInFlight = false;
+let remoteSyncQueued = false;
+let remoteApplyInFlight = false;
+let remoteApplyTimer = null;
+let pendingRemoteKanbanApply = false;
+let pendingRemoteState = null;
 let remoteSyncAuth = loadRemoteSyncAuth();
 let remindersSyncTimer = null;
 let remindersSyncInFlight = false;
@@ -788,6 +796,7 @@ function workspaceUiSnapshot(ui = state.ui) {
     remindersLastSyncError: ui.remindersLastSyncError || "",
     autoBackupDirectoryName: ui.autoBackupDirectoryName || "",
     autoBackupDirectoryPath: ui.autoBackupDirectoryPath || "",
+    autoBackupDirectoryBookmark: ui.autoBackupDirectoryBookmark || "",
     autoBackupFrequencyHours: normalizeAutoBackupFrequency(ui.autoBackupFrequencyHours),
     lastAutoBackupAt: ui.lastAutoBackupAt || "",
     lastAutoBackupPath: ui.lastAutoBackupPath || "",
@@ -1257,6 +1266,7 @@ function normalizeState(nextState) {
   nextState.ui.attachmentDirectoryPath = String(nextState.ui.attachmentDirectoryPath || "");
   nextState.ui.autoBackupDirectoryName = String(nextState.ui.autoBackupDirectoryName || "");
   nextState.ui.autoBackupDirectoryPath = String(nextState.ui.autoBackupDirectoryPath || "");
+  nextState.ui.autoBackupDirectoryBookmark = String(nextState.ui.autoBackupDirectoryBookmark || "");
   nextState.ui.autoBackupFrequencyHours = normalizeAutoBackupFrequency(nextState.ui.autoBackupFrequencyHours);
   nextState.ui.lastAutoBackupAt = String(nextState.ui.lastAutoBackupAt || "");
   nextState.ui.lastAutoBackupPath = String(nextState.ui.lastAutoBackupPath || "");
@@ -1406,10 +1416,15 @@ function stopRemoteReplication(status = "Disattivata") {
   clearTimeout(remoteSyncTimer);
   clearTimeout(remoteAutoSyncTimer);
   clearTimeout(remoteBackoffTimer);
+  clearTimeout(remoteApplyTimer);
   remoteSyncTimer = null;
   remoteAutoSyncTimer = null;
   remoteBackoffTimer = null;
+  remoteApplyTimer = null;
   remoteSyncFailureCount = 0;
+  remoteSyncQueued = false;
+  pendingRemoteKanbanApply = false;
+  pendingRemoteState = null;
   if (remoteSyncHandler?.cancel) remoteSyncHandler.cancel();
   remoteSyncHandler = null;
   remoteDb = null;
@@ -1493,8 +1508,65 @@ function scheduleRemoteAutoSync() {
 
 function queueRemoteSyncNow() {
   if (!state.sync?.remoteEnabled) return;
+  if (remoteSyncInFlight) {
+    remoteSyncQueued = true;
+    return;
+  }
   clearTimeout(remoteSyncTimer);
   remoteSyncTimer = setTimeout(runRemoteSyncNow, 80);
+}
+
+function queueRemoteKanbanApply() {
+  pendingRemoteKanbanApply = true;
+  scheduleRemoteApply();
+}
+
+function queueRemoteStateApply(remoteState) {
+  if (!remoteState) return;
+  if (pendingRemoteState && compareStateFreshness(remoteState, pendingRemoteState) <= 0) return;
+  pendingRemoteState = remoteState;
+  scheduleRemoteApply();
+}
+
+function scheduleRemoteApply(delayMs = 80) {
+  clearTimeout(remoteApplyTimer);
+  remoteApplyTimer = setTimeout(processQueuedRemoteApply, delayMs);
+}
+
+function remoteApplyBlockedByLocalWork() {
+  return (
+    remoteSyncInFlight ||
+    pouchSaveInFlight ||
+    Boolean(pendingPouchStateText) ||
+    Boolean(taskAutosaveTimer) ||
+    Boolean(els.taskDialog?.open)
+  );
+}
+
+async function processQueuedRemoteApply() {
+  clearTimeout(remoteApplyTimer);
+  remoteApplyTimer = null;
+  if (remoteApplyInFlight || (!pendingRemoteKanbanApply && !pendingRemoteState)) return;
+  if (remoteApplyBlockedByLocalWork()) {
+    scheduleRemoteApply(600);
+    return;
+  }
+
+  remoteApplyInFlight = true;
+  try {
+    if (pendingRemoteKanbanApply) {
+      pendingRemoteKanbanApply = false;
+      await applyRemoteKanbanDocs();
+    }
+    if (pendingRemoteState) {
+      const remoteState = pendingRemoteState;
+      pendingRemoteState = null;
+      applyRemoteState(remoteState, { queuePouch: true });
+    }
+  } finally {
+    remoteApplyInFlight = false;
+    if (pendingRemoteKanbanApply || pendingRemoteState) scheduleRemoteApply();
+  }
 }
 
 function runPouchSync(db, remote) {
@@ -1524,7 +1596,10 @@ function runPouchSync(db, remote) {
 }
 
 async function runRemoteSyncNow() {
-  if (remoteSyncInFlight) return;
+  if (remoteSyncInFlight) {
+    remoteSyncQueued = true;
+    return;
+  }
   const db = getPouchDb();
   if (!db) return;
   state.sync = normalizeSyncSettings(state.sync);
@@ -1545,7 +1620,7 @@ async function runRemoteSyncNow() {
     const resolvedLocal = await resolveKanbanDocConflicts(db);
     const resolvedRemote = await resolveKanbanDocConflicts(remote);
     if (resolvedLocal || resolvedRemote) await runPouchSync(db, remote);
-    if (resolvedLocal) await applyRemoteKanbanDocs();
+    if (resolvedLocal) queueRemoteKanbanApply();
     remoteSyncFailureCount = 0;
     clearTimeout(remoteBackoffTimer);
     remoteBackoffTimer = null;
@@ -1558,6 +1633,11 @@ async function runRemoteSyncNow() {
     scheduleRemoteBackoffRetry();
   } finally {
     remoteSyncInFlight = false;
+    await processQueuedRemoteApply();
+    if (remoteSyncQueued) {
+      remoteSyncQueued = false;
+      queueRemoteSyncNow();
+    }
   }
 }
 
@@ -1572,38 +1652,40 @@ function handleRemoteSyncChange(change) {
 
   const docs = change?.change?.docs || [];
   if (change?.direction === "pull") {
-    if (docs.some((doc) => isKanbanDataDocId(doc?._id))) applyRemoteKanbanDocs();
-    docs.forEach(applyRemoteStateDoc);
+    if (docs.some((doc) => isKanbanDataDocId(doc?._id))) queueRemoteKanbanApply();
+    docs.forEach(queueRemoteStateDocApply);
   }
   renderRemoteSyncStatus();
 }
 
 async function applyRemoteKanbanDocs() {
   const db = getPouchDb();
-  if (!db) return;
+  if (!db) return false;
   try {
     const remoteState = await readKanbanDocsState(db);
-    if (!remoteState || compareStateFreshness(remoteState, state) <= 0) return;
-    state = normalizeState(remoteState);
-    pouchPersistenceInitialized = true;
-    suppressNextAutoBackup = true;
-    persistStateSnapshot(JSON.stringify(state));
-    render();
+    return applyRemoteState(remoteState);
   } catch (error) {
     console.error("Applicazione documenti remoti non riuscita", error);
+    return false;
   }
 }
 
-function applyRemoteStateDoc(doc) {
+function queueRemoteStateDocApply(doc) {
   if (!doc || doc._id !== POUCH_STATE_DOC_ID || !doc.stateText) return;
   const remoteState = safeParseState(doc.stateText);
   if (!remoteState || compareStateFreshness(remoteState, state) <= 0) return;
+  queueRemoteStateApply(remoteState);
+}
+
+function applyRemoteState(remoteState, { queuePouch = false } = {}) {
+  if (!remoteState || compareStateFreshness(remoteState, state) <= 0) return false;
   state = normalizeState(remoteState);
   pouchPersistenceInitialized = true;
   suppressNextAutoBackup = true;
   persistStateSnapshot(JSON.stringify(state));
-  queuePouchStateSave(JSON.stringify(state));
+  if (queuePouch) queuePouchStateSave(JSON.stringify(state));
   render();
+  return true;
 }
 
 function markRemoteSyncStatus(status, error = "") {
@@ -3220,15 +3302,22 @@ function renderProjectsOverview() {
                       <div class="project-quick-actions">
                         <button class="project-dashboard-btn" data-note-project="${project.id}" type="button">Nota</button>
                         <button class="project-dashboard-btn" data-open-project-dashboard="${project.id}" type="button">Dashboard</button>
+                        <button class="project-dashboard-btn project-edit-btn" data-project-actions="${project.id}" type="button" aria-expanded="${pendingProjectActionsId === project.id}">Modifica</button>
+                        ${
+                          pendingProjectActionsId === project.id
+                            ? `
+                              <div class="project-actions-popover" data-project-actions-popover="${project.id}">
+                                <button class="secondary-btn" data-archive-project="${project.id}" type="button">Archivia</button>
+                                <button class="secondary-btn" data-rename-project="${project.id}" type="button">Rinomina</button>
+                                <button class="danger-btn" data-delete-project="${project.id}" type="button" aria-label="Elimina progetto ${escapeHtml(project.name)}">Elimina</button>
+                              </div>
+                            `
+                            : ""
+                        }
                       </div>
                     </div>
                   `
               }
-              <div class="project-summary-actions">
-                <button class="secondary-btn" data-archive-project="${project.id}" type="button">Archivia</button>
-                <button class="secondary-btn" data-rename-project="${project.id}" type="button">Rinomina</button>
-                <button class="danger-btn" data-delete-project="${project.id}" type="button" aria-label="Cancella progetto ${escapeHtml(project.name)}">Cancella</button>
-              </div>
             </article>
           `;
         })
@@ -3268,12 +3357,19 @@ function renderArchiveOverview() {
                         <div class="project-quick-actions">
                           <button class="project-dashboard-btn" data-note-project="${project.id}" type="button">Nota</button>
                           <button class="project-dashboard-btn" data-open-project-dashboard="${project.id}" type="button">Dashboard</button>
+                          <button class="project-dashboard-btn project-edit-btn" data-project-actions="${project.id}" type="button" aria-expanded="${pendingProjectActionsId === project.id}">Modifica</button>
+                          ${
+                            pendingProjectActionsId === project.id
+                              ? `
+                                <div class="project-actions-popover" data-project-actions-popover="${project.id}">
+                                  <button class="secondary-btn" data-open-project="${project.id}" type="button">Apri</button>
+                                  <button class="secondary-btn" data-restore-project="${project.id}" type="button">Ripristina</button>
+                                  <button class="danger-btn" data-delete-project="${project.id}" type="button" aria-label="Elimina progetto ${escapeHtml(project.name)}">Elimina</button>
+                                </div>
+                              `
+                              : ""
+                          }
                         </div>
-                      </div>
-                      <div class="project-summary-actions">
-                        <button class="secondary-btn" data-open-project="${project.id}" type="button">Apri</button>
-                        <button class="secondary-btn" data-restore-project="${project.id}" type="button">Ripristina</button>
-                        <button class="danger-btn" data-delete-project="${project.id}" type="button" aria-label="Cancella progetto ${escapeHtml(project.name)}">Cancella</button>
                       </div>
                     </article>
                   `;
@@ -3591,6 +3687,8 @@ function projectCreateFormMarkup(context) {
 function bindProjectOverviewActions() {
   els.content.querySelectorAll("#emptyNewProjectBtn, #overviewNewProjectBtn").forEach((button) => {
     button.addEventListener("click", () => {
+      pendingRenameProjectId = null;
+      pendingProjectActionsId = "";
       projectCreateOpen = true;
       render();
       els.content.querySelector(".inline-project-form input")?.focus();
@@ -3603,6 +3701,7 @@ function bindProjectOverviewActions() {
       const name = new FormData(form).get("projectName")?.toString().trim();
       if (!name) return;
       projectCreateOpen = false;
+      pendingProjectActionsId = "";
       createProject(name);
     });
   });
@@ -3615,19 +3714,39 @@ function bindProjectOverviewActions() {
   });
 
   els.content.querySelectorAll("[data-note-project]").forEach((button) => {
-    button.addEventListener("click", () => openProjectNoteDialog(button.dataset.noteProject));
+    button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
+      openProjectNoteDialog(button.dataset.noteProject);
+    });
+  });
+
+  els.content.querySelectorAll("[data-project-actions]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      pendingRenameProjectId = null;
+      projectCreateOpen = false;
+      pendingProjectActionsId = pendingProjectActionsId === button.dataset.projectActions ? "" : button.dataset.projectActions;
+      render();
+    });
   });
 
   els.content.querySelectorAll("[data-archive-project]").forEach((button) => {
-    button.addEventListener("click", () => archiveProject(button.dataset.archiveProject));
+    button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
+      archiveProject(button.dataset.archiveProject);
+    });
   });
 
   els.content.querySelectorAll("[data-restore-project]").forEach((button) => {
-    button.addEventListener("click", () => restoreProject(button.dataset.restoreProject));
+    button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
+      restoreProject(button.dataset.restoreProject);
+    });
   });
 
   els.content.querySelectorAll("[data-rename-project]").forEach((button) => {
     button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
       pendingRenameProjectId = button.dataset.renameProject;
       projectCreateOpen = false;
       render();
@@ -3660,20 +3779,32 @@ function bindProjectOverviewActions() {
 
   els.content.querySelectorAll("[data-open-project]").forEach((button) => {
     button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
       openProjectTab(button.dataset.openProject, "board");
     });
   });
   els.content.querySelectorAll("[data-open-project-dashboard]").forEach((button) => {
     button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
       openProjectTab(button.dataset.openProjectDashboard, "dashboard");
     });
   });
   els.content.querySelectorAll("[data-delete-project]").forEach((button) => {
     button.addEventListener("click", () => {
-      openProjectDeleteDialog(button.dataset.deleteProject);
+      const projectId = button.dataset.deleteProject;
+      pendingProjectActionsId = "";
+      renderContent();
+      openProjectDeleteDialog(projectId);
     });
   });
 }
+
+document.addEventListener("click", (event) => {
+  if (!pendingProjectActionsId) return;
+  if (event.target.closest("[data-project-actions], .project-actions-popover")) return;
+  pendingProjectActionsId = "";
+  render();
+});
 
 function renderAllProjectDeadlines() {
   const term = state.search.trim().toLowerCase();
@@ -4776,6 +4907,75 @@ function deleteTaskFromDialog() {
   });
 }
 
+function removeAttachmentFromDraft(attachmentId) {
+  taskAttachmentDraft = taskAttachmentDraft.filter((attachment) => attachment.id !== attachmentId);
+  renderAttachmentList();
+  scheduleTaskAutosave();
+}
+
+function closeAttachmentRemovePopup() {
+  document.querySelector(".attachment-remove-popup")?.remove();
+}
+
+function openAttachmentRemovePopup(attachmentId) {
+  const attachment = taskAttachmentDraft.find((item) => item.id === attachmentId);
+  if (!attachment) return;
+  closeAttachmentRemovePopup();
+  const popup = document.createElement("div");
+  popup.className = "attachment-remove-popup";
+  popup.setAttribute("role", "dialog");
+  popup.setAttribute("aria-modal", "true");
+  popup.innerHTML = `
+    <div class="attachment-remove-card">
+      <h4>Rimuovere l'allegato?</h4>
+      <p>
+        Vuoi solo scollegare <strong>${escapeHtml(attachment.name)}</strong> dall'attività
+        oppure spostare anche il file nel Cestino?
+      </p>
+      <small>${escapeHtml(attachment.path || "File non ancora collegato sul disco.")}</small>
+      <div class="attachment-remove-actions">
+        <button type="button" class="secondary-btn" data-attachment-remove-action="cancel">Annulla</button>
+        <button type="button" class="small-btn" data-attachment-remove-action="remove">Rimuovi</button>
+        <button type="button" class="danger-btn" data-attachment-remove-action="trash" ${attachment.path ? "" : "disabled"}>Elimina</button>
+      </div>
+    </div>
+  `;
+  popup.addEventListener("click", (event) => {
+    if (event.target === popup) closeAttachmentRemovePopup();
+  });
+  popup.querySelectorAll("[data-attachment-remove-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = button.dataset.attachmentRemoveAction;
+      if (action === "cancel") {
+        closeAttachmentRemovePopup();
+        return;
+      }
+      if (action === "remove") {
+        removeAttachmentFromDraft(attachment.id);
+        closeAttachmentRemovePopup();
+        return;
+      }
+      if (action === "trash") {
+        if (!attachment.path || !window.webkit?.messageHandlers?.trashTaskAttachment) {
+          alert("L'eliminazione fisica è disponibile solo nell'app macOS.");
+          return;
+        }
+        pendingAttachmentTrash = attachment.id;
+        popup.querySelectorAll("button").forEach((item) => {
+          item.disabled = true;
+        });
+        window.webkit.messageHandlers.trashTaskAttachment.postMessage({
+          id: attachment.id,
+          name: attachment.name,
+          path: attachment.path,
+        });
+      }
+    });
+  });
+  (els.taskDialog || document.body).appendChild(popup);
+  popup.querySelector("[data-attachment-remove-action='cancel']")?.focus();
+}
+
 function renderAttachmentList() {
   if (!els.attachmentList) return;
   if (!taskAttachmentDraft.length) {
@@ -4808,9 +5008,7 @@ function renderAttachmentList() {
   });
   els.attachmentList.querySelectorAll("[data-remove-attachment]").forEach((button) => {
     button.addEventListener("click", () => {
-      taskAttachmentDraft = taskAttachmentDraft.filter((attachment) => attachment.id !== button.dataset.removeAttachment);
-      renderAttachmentList();
-      scheduleTaskAutosave();
+      openAttachmentRemovePopup(button.dataset.removeAttachment);
     });
   });
 }
@@ -4905,6 +5103,19 @@ function renderAttachmentConfig() {
 
 window.receiveTaskAttachment = (attachment) => {
   addTaskAttachment(attachment);
+};
+
+window.receiveTaskAttachmentTrashResult = (result) => {
+  const attachmentId = String(result?.id || pendingAttachmentTrash || "");
+  pendingAttachmentTrash = null;
+  if (result?.ok && attachmentId) {
+    removeAttachmentFromDraft(attachmentId);
+    closeAttachmentRemovePopup();
+    return;
+  }
+  const message = String(result?.message || "Non sono riuscito a spostare il file nel Cestino.");
+  alert(message);
+  closeAttachmentRemovePopup();
 };
 
 window.receiveAttachmentEditor = (editor) => {
@@ -5901,6 +6112,8 @@ function downloadBackupZip(filename, backup, attachmentFiles = []) {
     window.webkit.messageHandlers.exportBackupZip.postMessage({
       filename,
       backupText,
+      directoryPath: state.ui.autoBackupDirectoryPath || "",
+      directoryBookmark: state.ui.autoBackupDirectoryBookmark || "",
       files: attachmentFiles,
     });
     return;
@@ -5960,6 +6173,7 @@ function runAutoBackupNow() {
   const backupText = JSON.stringify(backup, null, 2);
   window.webkit.messageHandlers.autoBackupZip.postMessage({
     directoryPath: state.ui.autoBackupDirectoryPath,
+    directoryBookmark: state.ui.autoBackupDirectoryBookmark || "",
     filename: `backup-automatico-kanban-${autoBackupTimestamp(createdAt)}.zip`,
     backupText,
     files: attachmentFiles,
@@ -5983,6 +6197,7 @@ function selectAutoBackupDirectory() {
 function clearAutoBackupDirectory() {
   state.ui.autoBackupDirectoryName = "";
   state.ui.autoBackupDirectoryPath = "";
+  state.ui.autoBackupDirectoryBookmark = "";
   state.ui.lastAutoBackupError = "";
   clearTimeout(autoBackupTimer);
   renderAutoBackupConfig();
@@ -6166,6 +6381,7 @@ function renderRemoteSyncConfig() {
 window.receiveAutoBackupDirectory = (directory) => {
   state.ui.autoBackupDirectoryName = String(directory?.name || "");
   state.ui.autoBackupDirectoryPath = String(directory?.path || "");
+  state.ui.autoBackupDirectoryBookmark = String(directory?.bookmark || "");
   state.ui.lastAutoBackupError = "";
   renderAutoBackupConfig();
   renderDataSafetyCenter();
@@ -6346,6 +6562,7 @@ function restoreConfigurationFromBackup(parsed) {
   if (typeof config.attachmentDirectoryPath === "string") state.ui.attachmentDirectoryPath = config.attachmentDirectoryPath;
   if (typeof config.autoBackupDirectoryName === "string") state.ui.autoBackupDirectoryName = config.autoBackupDirectoryName;
   if (typeof config.autoBackupDirectoryPath === "string") state.ui.autoBackupDirectoryPath = config.autoBackupDirectoryPath;
+  if (typeof config.autoBackupDirectoryBookmark === "string") state.ui.autoBackupDirectoryBookmark = config.autoBackupDirectoryBookmark;
   state.ui.autoBackupFrequencyHours = normalizeAutoBackupFrequency(config.autoBackupFrequencyHours ?? state.ui.autoBackupFrequencyHours);
   if (config.remoteSync) state.sync = normalizeSyncSettings(config.remoteSync);
   if (Array.isArray(config.participants)) state.ui.participants = normalizeParticipants(config.participants);

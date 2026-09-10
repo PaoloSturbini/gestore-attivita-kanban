@@ -258,15 +258,22 @@ function renderProjectsOverview() {
                       <div class="project-quick-actions">
                         <button class="project-dashboard-btn" data-note-project="${project.id}" type="button">Nota</button>
                         <button class="project-dashboard-btn" data-open-project-dashboard="${project.id}" type="button">Dashboard</button>
+                        <button class="project-dashboard-btn project-edit-btn" data-project-actions="${project.id}" type="button" aria-expanded="${pendingProjectActionsId === project.id}">Modifica</button>
+                        ${
+                          pendingProjectActionsId === project.id
+                            ? `
+                              <div class="project-actions-popover" data-project-actions-popover="${project.id}">
+                                <button class="secondary-btn" data-archive-project="${project.id}" type="button">Archivia</button>
+                                <button class="secondary-btn" data-rename-project="${project.id}" type="button">Rinomina</button>
+                                <button class="danger-btn" data-delete-project="${project.id}" type="button" aria-label="Elimina progetto ${escapeHtml(project.name)}">Elimina</button>
+                              </div>
+                            `
+                            : ""
+                        }
                       </div>
                     </div>
                   `
               }
-              <div class="project-summary-actions">
-                <button class="secondary-btn" data-archive-project="${project.id}" type="button">Archivia</button>
-                <button class="secondary-btn" data-rename-project="${project.id}" type="button">Rinomina</button>
-                <button class="danger-btn" data-delete-project="${project.id}" type="button" aria-label="Cancella progetto ${escapeHtml(project.name)}">Cancella</button>
-              </div>
             </article>
           `;
         })
@@ -306,12 +313,19 @@ function renderArchiveOverview() {
                         <div class="project-quick-actions">
                           <button class="project-dashboard-btn" data-note-project="${project.id}" type="button">Nota</button>
                           <button class="project-dashboard-btn" data-open-project-dashboard="${project.id}" type="button">Dashboard</button>
+                          <button class="project-dashboard-btn project-edit-btn" data-project-actions="${project.id}" type="button" aria-expanded="${pendingProjectActionsId === project.id}">Modifica</button>
+                          ${
+                            pendingProjectActionsId === project.id
+                              ? `
+                                <div class="project-actions-popover" data-project-actions-popover="${project.id}">
+                                  <button class="secondary-btn" data-open-project="${project.id}" type="button">Apri</button>
+                                  <button class="secondary-btn" data-restore-project="${project.id}" type="button">Ripristina</button>
+                                  <button class="danger-btn" data-delete-project="${project.id}" type="button" aria-label="Elimina progetto ${escapeHtml(project.name)}">Elimina</button>
+                                </div>
+                              `
+                              : ""
+                          }
                         </div>
-                      </div>
-                      <div class="project-summary-actions">
-                        <button class="secondary-btn" data-open-project="${project.id}" type="button">Apri</button>
-                        <button class="secondary-btn" data-restore-project="${project.id}" type="button">Ripristina</button>
-                        <button class="danger-btn" data-delete-project="${project.id}" type="button" aria-label="Cancella progetto ${escapeHtml(project.name)}">Cancella</button>
                       </div>
                     </article>
                   `;
@@ -629,6 +643,8 @@ function projectCreateFormMarkup(context) {
 function bindProjectOverviewActions() {
   els.content.querySelectorAll("#emptyNewProjectBtn, #overviewNewProjectBtn").forEach((button) => {
     button.addEventListener("click", () => {
+      pendingRenameProjectId = null;
+      pendingProjectActionsId = "";
       projectCreateOpen = true;
       render();
       els.content.querySelector(".inline-project-form input")?.focus();
@@ -641,6 +657,7 @@ function bindProjectOverviewActions() {
       const name = new FormData(form).get("projectName")?.toString().trim();
       if (!name) return;
       projectCreateOpen = false;
+      pendingProjectActionsId = "";
       createProject(name);
     });
   });
@@ -653,19 +670,39 @@ function bindProjectOverviewActions() {
   });
 
   els.content.querySelectorAll("[data-note-project]").forEach((button) => {
-    button.addEventListener("click", () => openProjectNoteDialog(button.dataset.noteProject));
+    button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
+      openProjectNoteDialog(button.dataset.noteProject);
+    });
+  });
+
+  els.content.querySelectorAll("[data-project-actions]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      pendingRenameProjectId = null;
+      projectCreateOpen = false;
+      pendingProjectActionsId = pendingProjectActionsId === button.dataset.projectActions ? "" : button.dataset.projectActions;
+      render();
+    });
   });
 
   els.content.querySelectorAll("[data-archive-project]").forEach((button) => {
-    button.addEventListener("click", () => archiveProject(button.dataset.archiveProject));
+    button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
+      archiveProject(button.dataset.archiveProject);
+    });
   });
 
   els.content.querySelectorAll("[data-restore-project]").forEach((button) => {
-    button.addEventListener("click", () => restoreProject(button.dataset.restoreProject));
+    button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
+      restoreProject(button.dataset.restoreProject);
+    });
   });
 
   els.content.querySelectorAll("[data-rename-project]").forEach((button) => {
     button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
       pendingRenameProjectId = button.dataset.renameProject;
       projectCreateOpen = false;
       render();
@@ -698,20 +735,32 @@ function bindProjectOverviewActions() {
 
   els.content.querySelectorAll("[data-open-project]").forEach((button) => {
     button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
       openProjectTab(button.dataset.openProject, "board");
     });
   });
   els.content.querySelectorAll("[data-open-project-dashboard]").forEach((button) => {
     button.addEventListener("click", () => {
+      pendingProjectActionsId = "";
       openProjectTab(button.dataset.openProjectDashboard, "dashboard");
     });
   });
   els.content.querySelectorAll("[data-delete-project]").forEach((button) => {
     button.addEventListener("click", () => {
-      openProjectDeleteDialog(button.dataset.deleteProject);
+      const projectId = button.dataset.deleteProject;
+      pendingProjectActionsId = "";
+      renderContent();
+      openProjectDeleteDialog(projectId);
     });
   });
 }
+
+document.addEventListener("click", (event) => {
+  if (!pendingProjectActionsId) return;
+  if (event.target.closest("[data-project-actions], .project-actions-popover")) return;
+  pendingProjectActionsId = "";
+  render();
+});
 
 function renderAllProjectDeadlines() {
   const term = state.search.trim().toLowerCase();

@@ -59,6 +59,7 @@ const initialData = {
     remindersLastSyncError: "",
     autoBackupDirectoryName: "",
     autoBackupDirectoryPath: "",
+    autoBackupDirectoryBookmark: "",
     autoBackupFrequencyHours: 6,
     lastAutoBackupAt: "",
     lastAutoBackupPath: "",
@@ -97,11 +98,13 @@ let pendingRestoreWorkspaces = [];
 let pendingRestoreKind = "";
 let projectCreateOpen = false;
 let pendingRenameProjectId = null;
+let pendingProjectActionsId = "";
 let workspaceCreateOpen = false;
 let pendingRenameParticipant = "";
 let workspaceRenameOpen = false;
 let pendingRenameWorkspaceId = "";
 let taskAttachmentDraft = [];
+let pendingAttachmentTrash = "";
 let taskAutosaveTimer = null;
 let pendingUndo = null;
 let undoToastTimer = null;
@@ -121,6 +124,11 @@ let remoteSyncSignature = "";
 let remoteSyncTimer = null;
 let remoteAutoSyncTimer = null;
 let remoteSyncInFlight = false;
+let remoteSyncQueued = false;
+let remoteApplyInFlight = false;
+let remoteApplyTimer = null;
+let pendingRemoteKanbanApply = false;
+let pendingRemoteState = null;
 let remoteSyncAuth = loadRemoteSyncAuth();
 let remindersSyncTimer = null;
 let remindersSyncInFlight = false;

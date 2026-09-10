@@ -1,12 +1,13 @@
 # Gestore attività Kanban
 
-App macOS locale per gestire attività Kanban, allegati, scadenze, archivio, promemoria Apple e sincronizzazione remota CouchDB. Il repository include anche il setup server per CouchDB e un portale web gateway per i responsabili.
+App locale per macOS, iPhone e iPad per gestire attività Kanban, allegati, scadenze, archivio, promemoria Apple e sincronizzazione remota CouchDB. Il repository include anche il setup server per CouchDB e un portale web gateway per i responsabili.
 
 ## Contenuto della distribuzione
 
 - `src/`: sorgenti modulari dell'app web caricata dalla WebView macOS.
 - `assets/`: HTML, CSS, dati sample, PouchDB e bundle web generato.
 - `macos/`: wrapper Swift/WebKit, icone, `Info.plist` e script di build.
+- `ios/`: progetto Xcode SwiftUI/WebKit per iPhone e iPad.
 - `deploy/couchdb/`: stack e script idempotente per preparare CouchDB.
 - `deploy/portal/`: portale web per responsabili, eseguito server-side con Node.
 - `tests/`: controlli strutturali e regressioni principali.
@@ -19,6 +20,8 @@ Per compilare l'app macOS:
 - Xcode Command Line Tools o Xcode completo
 - Node.js 24 o superiore
 - Python 3
+
+Per compilare l'app iOS serve Xcode completo. Il target minimo è iOS 17.
 
 Per il server:
 
@@ -46,6 +49,16 @@ open "/Applications/Gestore attività Kanban.app"
 ```
 
 `macos/build_app.sh` rigenera il bundle JavaScript, compila il wrapper Swift, firma ad hoc l'app e aggiorna `dist/`. Se `KANBAN_INSTALL_APP` non e impostato a `0`, aggiorna anche `/Applications`.
+
+### iPhone e iPad
+
+Per verificare la build del simulatore:
+
+```bash
+npm run build:ios
+```
+
+Per eseguirla su un dispositivo reale, apri `ios/GestoreKanbanIOS.xcodeproj` in Xcode, seleziona il tuo Team nella sezione Signing & Capabilities, collega iPhone o iPad e premi Run. La versione iOS conserva stato e credenziali localmente, supporta la replica CouchDB, Promemoria, import/export Excel e condivisione dei backup JSON. La gestione diretta degli allegati su cartelle macOS e i backup ZIP con allegati restano funzioni desktop.
 
 ## Sviluppo app
 
