@@ -29,8 +29,8 @@ jobs:
         run: |
           set -Eeuo pipefail
           deploy_dir=/srv/repos/gestore-attivita-kanban
-          test "$(hostname -s)" = x1pro
-          test -d "$deploy_dir/.git"
+          test "$RUNNER_NAME" = x1pro-kanban
+          git -C "$deploy_dir" rev-parse --is-inside-work-tree | grep -qx true
           if [ -f "$deploy_dir/deploy/couchdb/.env" ]; then couch_state=present; else couch_state=missing; fi
           if [ -f "$deploy_dir/deploy/portal/.env" ]; then portal_state=present; else portal_state=missing; fi
           if docker inspect kanban-couchdb >/dev/null 2>&1; then couch_container=present; else couch_container=missing; fi
