@@ -30,7 +30,12 @@ jobs:
           set -Eeuo pipefail
           deploy_dir=/srv/repos/gestore-attivita-kanban
           test "$RUNNER_NAME" = x1pro-kanban
-          git -C "$deploy_dir" rev-parse --is-inside-work-tree | grep -qx true
+          if ! git -C "$deploy_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            mkdir -p "$deploy_dir"
+            git -C "$deploy_dir" init --quiet
+            echo "GIT-MIRROR: initialized on x1pro"
+          fi
+          mkdir -p "$deploy_dir/deploy/couchdb" "$deploy_dir/deploy/portal"
           if [ -f "$deploy_dir/deploy/couchdb/.env" ]; then couch_state=present; else couch_state=missing; fi
           if [ -f "$deploy_dir/deploy/portal/.env" ]; then portal_state=present; else portal_state=missing; fi
           if docker inspect kanban-couchdb >/dev/null 2>&1; then couch_container=present; else couch_container=missing; fi
