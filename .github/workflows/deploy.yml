@@ -31,6 +31,7 @@ jobs:
           deploy_dir=/srv/repos/gestore-attivita-kanban
           diagnostics() {
             docker ps -a --filter name=kanban-couchdb --filter name=kanban-portal || true
+            docker inspect --format 'COUCHDB-STATE: status={{.State.Status}} exit={{.State.ExitCode}} error={{.State.Error}} oom={{.State.OOMKilled}}' kanban-couchdb 2>&1 || true
             docker logs --tail 100 kanban-couchdb 2>&1 || true
             docker logs --tail 100 kanban-portal 2>&1 || true
           }
