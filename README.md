@@ -74,16 +74,12 @@ La WebView macOS carica file locali via `file://`, quindi i moduli in `src/` ven
 
 ## Configurazione CouchDB
 
-Per un server dedicato:
+La produzione usa esclusivamente X1 Pro. Le credenziali restano nei file `.env` sul server e il rilascio avviene soltanto tramite GitHub Actions dopo il merge su `main`.
 
 ```bash
-rsync -avz deploy/couchdb/ root@SERVER:/root/paolost/kanban-couchdb/
-ssh root@SERVER
-cd /root/paolost/kanban-couchdb
-cp .env.example .env
-nano .env
-docker compose -f cosmos.yml up -d
-bash ./init-kanban-db.sh
+git switch -c nome-del-branch
+# modifica, test, push e Pull Request verso main
+# il merge attiva il runner x1pro-kanban
 ```
 
 Lo script `init-kanban-db.sh` crea o aggiorna database, utente applicativo, permessi e viste necessarie al portale:
@@ -100,12 +96,10 @@ Se usi Docker Compose e una password contiene `$`, scrivila come `$$` nel file `
 
 Il portale e un web gateway server-side: i responsabili non ricevono credenziali CouchDB nel browser. Il server parla con CouchDB e applica i permessi in base a `owner`, `visibleTo`, `Team` e agli utenti creati dall'admin.
 
-Setup:
+Configurazione persistente su X1 Pro:
 
 ```bash
-rsync -avz deploy/portal/ root@SERVER:/root/paolost/kanban-portal/
-ssh root@SERVER
-cd /root/paolost/kanban-portal
+cd /srv/repos/gestore-attivita-kanban/deploy/portal
 cp .env.example .env
 cp users.example.json users.json
 nano .env
@@ -132,13 +126,12 @@ SSL redirect: true
 
 Il portale richiede `SESSION_SECRET` di almeno 24 caratteri e un utente admin bootstrap in `users.json`. Dopo il primo accesso, gli utenti responsabili si creano dal pannello admin e vengono salvati in CouchDB con password hash `scrypt`.
 
-## Flusso completo consigliato
+## Flusso di rilascio
 
-1. Compila e apri l'app macOS.
-2. Configura CouchDB remoto con `deploy/couchdb`.
-3. Nell'app, configura la replica CouchDB verso l'endpoint pubblico.
-4. Sincronizza almeno una volta, cosi vengono creati i documenti `kanban-task`.
-5. Avvia `deploy/portal` e crea gli utenti responsabili dal pannello admin.
+1. Lavora su un branch e apri una Pull Request verso `main`.
+2. Attendi i controlli per web, portale e applicazioni Apple.
+3. Il merge attiva esclusivamente `x1pro-kanban`.
+4. Il workflow preserva `.env` e `users.json`, aggiorna `/srv/repos/gestore-attivita-kanban`, avvia CouchDB e portale e verifica entrambe le sonde locali.
 
 ## Verifiche
 

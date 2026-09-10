@@ -13,7 +13,7 @@ Portale web leggero per permettere ai responsabili di vedere e aggiornare solo l
 ## Configurazione
 
 ```bash
-cd /root/paolost/kanban-portal
+cd /srv/repos/gestore-attivita-kanban/deploy/portal
 cp .env.example .env
 cp users.example.json users.json
 nano .env
@@ -42,11 +42,9 @@ Le password sono salvate solo come hash `scrypt` con salt (campo `passwordHash`)
 
 > Migrazione: gli utenti creati con versioni precedenti hanno ancora `password`/`passwordSha256` in chiaro nel documento. Reimposta la password di ciascuno una volta dal pannello admin per sostituirle con l'hash `scrypt` e ripulire i campi storici.
 
-## Avvio manuale
+## Rilascio
 
-```bash
-./start.sh
-```
+Il merge su `main` attiva esclusivamente il runner `x1pro-kanban`, che preserva `.env` e `users.json`, riavvia il container e verifica `http://127.0.0.1:8787/`.
 
 Poi apri:
 
@@ -70,24 +68,6 @@ Mantieni `pstdb.pst.my` solo per CouchDB. Il portale parlera con CouchDB dal ser
 
 ```text
 https://staff360.pst.my
-```
-
-## Servizio systemd
-
-```ini
-[Unit]
-Description=Kanban responsabili portal
-After=network-online.target
-
-[Service]
-WorkingDirectory=/root/paolost/kanban-portal
-ExecStart=/root/paolost/kanban-portal/start.sh
-Restart=always
-RestartSec=5
-User=root
-
-[Install]
-WantedBy=multi-user.target
 ```
 
 ## Note CouchDB
