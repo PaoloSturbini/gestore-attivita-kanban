@@ -119,9 +119,12 @@ jobs:
           cd "$deploy_dir"
           docker rm -f kanban-portal kanban-couchdb >/dev/null 2>&1 || true
           docker compose --env-file deploy/couchdb/.env -f deploy/couchdb/cosmos.yml up -d --remove-orphans
+          set -a
+          . deploy/couchdb/.env
+          set +a
           couch_ready=0
           for _ in $(seq 1 60); do
-            if curl -fsS --max-time 5 http://127.0.0.1:5985/_up | grep -q '"ok"'; then
+            if curl -fsS --max-time 5 -u "$COUCHDB_USER:$COUCHDB_PASSWORD" http://127.0.0.1:5985/_up | grep -q '"ok"'; then
               couch_ready=1
               break
             fi
@@ -131,9 +134,6 @@ jobs:
           bash deploy/couchdb/init-kanban-db.sh
           docker compose --env-file deploy/portal/.env -f deploy/portal/docker-compose.yml up -d --remove-orphans
 
-          set -a
-          . deploy/couchdb/.env
-          set +a
           couch_ok=0
           portal_ok=0
           for _ in $(seq 1 30); do
