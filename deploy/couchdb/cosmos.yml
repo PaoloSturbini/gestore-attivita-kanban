@@ -28,3 +28,4 @@ services:
 
 volumes:
   couchdb_data:
+    name: ${COUCHDB_VOLUME:-couchdb_couchdb_data}

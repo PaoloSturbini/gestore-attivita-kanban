@@ -84,6 +84,16 @@ jobs:
             echo "CONFIG-MIGRATION: recovered portal configuration on x1pro"
           fi
 
+          if ! grep -q '^COUCHDB_VOLUME=' "$deploy_dir/deploy/couchdb/.env"; then
+            couch_volume=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/opt/couchdb/data"}}{{println .Name}}{{end}}{{end}}' kanban-couchdb | head -n 1)
+            append_env "$deploy_dir/deploy/couchdb/.env" COUCHDB_VOLUME "$couch_volume"
+            echo "CONFIG-MIGRATION: retained the existing CouchDB volume on x1pro"
+          fi
+          if [ ! -f "$deploy_dir/deploy/portal/users.json" ] && docker cp kanban-portal:/app/users.json "$deploy_dir/deploy/portal/users.json" 2>/dev/null; then
+            chmod 600 "$deploy_dir/deploy/portal/users.json"
+            echo "CONFIG-MIGRATION: retained the portal bootstrap account on x1pro"
+          fi
+
           test -f "$deploy_dir/deploy/couchdb/.env"
           test -f "$deploy_dir/deploy/portal/.env"
 
@@ -100,6 +110,7 @@ jobs:
           echo "GIT-MIRROR: clean"
 
           cd "$deploy_dir"
+          docker rm -f kanban-portal kanban-couchdb >/dev/null 2>&1 || true
           docker compose --env-file deploy/couchdb/.env -f deploy/couchdb/cosmos.yml up -d --remove-orphans
           bash deploy/couchdb/init-kanban-db.sh
           docker compose --env-file deploy/portal/.env -f deploy/portal/docker-compose.yml up -d --remove-orphans
