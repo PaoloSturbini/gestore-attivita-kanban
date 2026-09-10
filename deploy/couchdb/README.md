@@ -1,42 +1,14 @@
 # CouchDB remoto per Gestore attivita Kanban
 
-Questa cartella prepara un database CouchDB remoto per l'app Kanban su Netcup, dietro Cosmos Cloud.
+Questa cartella prepara il database CouchDB dell'app Kanban esclusivamente su X1 Pro, dietro Cosmos Cloud.
 
-## Opzione A: usa il CouchDB esistente
+## Stack X1 Pro
 
-Da documentazione locale risulta gia presente CouchDB dietro Cosmos a `https://cdb.pst.my`, con stack in `~/paolost/couchdb-livesync`. Se il servizio torna sano, crea solo il database dedicato:
-
-```bash
-cd ~/paolost/couchdb-livesync
-cp /percorso/deploy/couchdb/init-kanban-db.sh .
-
-export COUCHDB_URL=http://127.0.0.1:5984
-export KANBAN_DB_NAME=gestore-attivita-kanban
-export KANBAN_DB_USER=kanban_app
-export KANBAN_DB_PASSWORD='password-app-lunga'
-source .env
-
-bash ./init-kanban-db.sh
-```
-
-Endpoint app storico:
-
-```text
-https://cdb.pst.my/gestore-attivita-kanban
-```
-
-## Opzione B: CouchDB isolato per l'app
-
-Se preferisci non mescolare LiveSync e Kanban, copia questa cartella sul server:
+Il rilascio avviene soltanto con GitHub Actions sul runner `x1pro-kanban`. Il workflow preserva `.env`, avvia lo stack isolato e applica automaticamente lo schema:
 
 ```bash
-rsync -avz deploy/couchdb/ root@46.38.234.216:/root/paolost/kanban-couchdb/
-ssh root@46.38.234.216
-cd /root/paolost/kanban-couchdb
-cp .env.example .env
-nano .env
-docker compose -f cosmos.yml up -d
-bash ./init-kanban-db.sh
+cd /srv/repos/gestore-attivita-kanban/deploy/couchdb
+docker compose --env-file .env -f cosmos.yml ps
 ```
 
 Se una password contiene `$`, nel file `.env` usala con escape doppio per Docker Compose:
@@ -58,6 +30,5 @@ https://pstdb.pst.my/gestore-attivita-kanban
 
 - `init-kanban-db.sh` e idempotente: puo essere rieseguito.
 - Lo script crea `_users`, `_replicator`, `_global_changes`, il database applicativo, un utente dedicato e la `_security` del database.
-- Per aggiornare un CouchDB gia esistente dopo modifiche allo schema o alle viste, copia questa cartella sul server e rilancia solo `bash ./init-kanban-db.sh`: aggiornera il design document senza cancellare i dati.
+- Il workflow riesegue lo script dopo ogni rilascio per aggiornare schema e viste senza cancellare i dati.
 - Non committare `.env`: contiene password amministrative e password app.
-- Al momento `https://cdb.pst.my/` risponde da Cosmos ma restituisce `502`; va riavviato o corretto il backend prima di usare l'opzione A.
