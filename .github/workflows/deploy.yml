@@ -33,7 +33,6 @@ jobs:
           test -d "$deploy_dir/.git"
           test -f "$deploy_dir/deploy/couchdb/.env"
           test -f "$deploy_dir/deploy/portal/.env"
-          test -f "$deploy_dir/deploy/portal/users.json"
 
           rsync -a --delete \
             --exclude '.git/' \
