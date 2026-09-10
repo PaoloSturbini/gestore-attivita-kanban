@@ -31,6 +31,49 @@ jobs:
           deploy_dir=/srv/repos/gestore-attivita-kanban
           test "$(hostname -s)" = x1pro
           test -d "$deploy_dir/.git"
+
+          container_value() {
+            docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$1" 2>/dev/null \
+              | sed -n "s/^$2=//p" | head -n 1
+          }
+          append_env() {
+            test -n "$3"
+            case "$3" in *"'"*|*$'\n'*) return 1 ;; esac
+            printf "%s='%s'\n" "$2" "$3" >> "$1"
+          }
+
+          if [ ! -f "$deploy_dir/deploy/couchdb/.env" ]; then
+            umask 077
+            couch_admin=$(container_value kanban-couchdb COUCHDB_USER)
+            couch_admin_password=$(container_value kanban-couchdb COUCHDB_PASSWORD)
+            app_user=$(container_value kanban-portal COUCHDB_USER)
+            app_password=$(container_value kanban-portal COUCHDB_PASSWORD)
+            couch_env="$deploy_dir/deploy/couchdb/.env.migrate"
+            : > "$couch_env"
+            append_env "$couch_env" COUCHDB_DOMAIN pstdb.pst.my
+            append_env "$couch_env" COUCHDB_USER "$couch_admin"
+            append_env "$couch_env" COUCHDB_PASSWORD "$couch_admin_password"
+            append_env "$couch_env" KANBAN_DB_NAME gestore-attivita-kanban
+            append_env "$couch_env" KANBAN_DB_USER "$app_user"
+            append_env "$couch_env" KANBAN_DB_PASSWORD "$app_password"
+            append_env "$couch_env" COUCHDB_URL http://127.0.0.1:5985
+            mv "$couch_env" "$deploy_dir/deploy/couchdb/.env"
+            echo "CONFIG-MIGRATION: recovered CouchDB configuration on x1pro"
+          fi
+
+          if [ ! -f "$deploy_dir/deploy/portal/.env" ]; then
+            umask 077
+            portal_env="$deploy_dir/deploy/portal/.env.migrate"
+            : > "$portal_env"
+            for key in PORT PUBLIC_URL SESSION_SECRET SESSION_MAX_AGE_HOURS COOKIE_SECURE COUCHDB_URL COUCHDB_DB COUCHDB_USER COUCHDB_PASSWORD PORTAL_USERS PORTAL_USERS_FILE; do
+              value=$(container_value kanban-portal "$key")
+              [ -z "$value" ] || append_env "$portal_env" "$key" "$value"
+            done
+            test -s "$portal_env"
+            mv "$portal_env" "$deploy_dir/deploy/portal/.env"
+            echo "CONFIG-MIGRATION: recovered portal configuration on x1pro"
+          fi
+
           test -f "$deploy_dir/deploy/couchdb/.env"
           test -f "$deploy_dir/deploy/portal/.env"
 
