@@ -7,7 +7,8 @@ services:
     environment:
       COUCHDB_USER: ${COUCHDB_USER}
       COUCHDB_PASSWORD: ${COUCHDB_PASSWORD}
-      NODENAME: 127.0.0.1
+      # Keep CouchDB's default nonode@nohost identity: the persistent
+      # single-node volume was initialized with its shards assigned to it.
     volumes:
       - couchdb_data:/opt/couchdb/data
       - ./local.ini:/opt/couchdb/etc/local.d/kanban.ini:ro
