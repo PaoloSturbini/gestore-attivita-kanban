@@ -132,6 +132,30 @@ jobs:
           done
           test "$couch_ready" = 1
           bash deploy/couchdb/init-kanban-db.sh
+          membership=$(curl -fsS --max-time 5 -u "$COUCHDB_USER:$COUCHDB_PASSWORD" \
+            http://127.0.0.1:5985/_membership)
+          db_info=$(curl -fsS --max-time 5 -u "$COUCHDB_USER:$COUCHDB_PASSWORD" \
+            "http://127.0.0.1:5985/$KANBAN_DB_NAME")
+          type_counts=$(curl -fsS --max-time 10 -u "$COUCHDB_USER:$COUCHDB_PASSWORD" \
+            "http://127.0.0.1:5985/$KANBAN_DB_NAME/_design/kanban/_view/by_type?group=true")
+          python3 - "$membership" "$db_info" "$type_counts" <<'PY'
+          import json
+          import sys
+
+          membership, db_info, type_counts = map(json.loads, sys.argv[1:])
+          all_nodes = membership.get("all_nodes", [])
+          if "nonode@nohost" not in all_nodes:
+              raise SystemExit(f"unexpected CouchDB node identity: {all_nodes}")
+          doc_count = db_info.get("doc_count")
+          if not isinstance(doc_count, int) or doc_count < 1:
+              raise SystemExit(f"application database is not readable: doc_count={doc_count!r}")
+          counts = {
+              str(row.get("key")): row.get("value")
+              for row in type_counts.get("rows", [])
+          }
+          print(f"COUCHDB-RESTORE: node=nonode@nohost doc_count={doc_count}")
+          print("COUCHDB-CONTENT: " + json.dumps(counts, sort_keys=True))
+          PY
           docker compose --env-file deploy/portal/.env -f deploy/portal/docker-compose.yml up -d --remove-orphans
 
           couch_ok=0
