@@ -137,7 +137,7 @@ jobs:
           db_info=$(curl -fsS --max-time 5 -u "$COUCHDB_USER:$COUCHDB_PASSWORD" \
             "http://127.0.0.1:5985/$KANBAN_DB_NAME")
           type_counts=$(curl -fsS --max-time 10 -u "$COUCHDB_USER:$COUCHDB_PASSWORD" \
-            "http://127.0.0.1:5985/$KANBAN_DB_NAME/_design/kanban/_view/by_type?group=true")
+            "http://127.0.0.1:5985/$KANBAN_DB_NAME/_design/kanban/_view/by_type?reduce=false")
           python3 - "$membership" "$db_info" "$type_counts" <<'PY'
           import json
           import sys
@@ -149,10 +149,10 @@ jobs:
           doc_count = db_info.get("doc_count")
           if not isinstance(doc_count, int) or doc_count < 1:
               raise SystemExit(f"application database is not readable: doc_count={doc_count!r}")
-          counts = {
-              str(row.get("key")): row.get("value")
-              for row in type_counts.get("rows", [])
-          }
+          counts = {}
+          for row in type_counts.get("rows", []):
+              key = str(row.get("key"))
+              counts[key] = counts.get(key, 0) + 1
           print(f"COUCHDB-RESTORE: node=nonode@nohost doc_count={doc_count}")
           print("COUCHDB-CONTENT: " + json.dumps(counts, sort_keys=True))
           PY
