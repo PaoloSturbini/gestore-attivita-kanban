@@ -117,7 +117,7 @@ jobs:
           echo "GIT-MIRROR: clean"
 
           cd "$deploy_dir"
-          docker rm -f kanban-portal kanban-couchdb >/dev/null 2>&1 || true
+          docker rm -f kanban-portal kanban-couchdb kanban-couchdb-test >/dev/null 2>&1 || true
           docker compose --env-file deploy/couchdb/.env -f deploy/couchdb/cosmos.yml up -d --remove-orphans
           set -a
           . deploy/couchdb/.env
